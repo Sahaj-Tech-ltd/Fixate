@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} - Fixate{% endblock %}
+
+{% block extra_css %}
+<style>
+.reader-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.reader-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.reader-header h1 {
+    font-size: 18px;
+    color: var(--text-secondary);
+}
+
+.reader-header nav a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-left: 20px;
+}
+
+.reader-header nav a:hover {
+    color: var(--accent);
+}
+
+.reader-controls {
+    display: flex;
+    gap: 20px;
+    padding: 15px 20px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-group label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.control-group input[type="range"] {
+    width: 80px;
+}
+
+.control-group select {
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 4px;
+}
+
+.mode-toggle button {
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.mode-toggle button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.reader-display {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.reader-display.rsvp-mode {
+    font-size: 48px;
+    font-weight: 500;
+}
+
+.reader-display.bionic-mode {
+    font-size: 24px;
+    line-height: 1.8;
+    text-align: left;
+    max-height: 400px;
+    overflow-y: auto;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.reader-display.bionic-mode .word {
+    margin-right: 4px;
+}
+
+.reader-display.bionic-mode .word.current {
+    background: var(--accent);
+    color: white;
+    padding: 0 4px;
+    border-radius: 2px;
+}
+
+.reader-display.bionic-mode .word strong {
+    font-weight: 700;
+}
+
+.playback-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.playback-controls button {
+    padding: 10px 20px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.playback-controls button:hover {
+    border-color: var(--accent);
+}
+
+.playback-controls button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.progress-bar {
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.1s;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reader-container" x-data="readerApp()" x-init="init()">
+    <header class="reader-header">
+        <h1>{{ document.title }}</h1>
+        <nav>
+            <span x-text="Math.round(progress * 100) + '%'"></span>
+            <a href="{% url 'dashboard' %}">Back to Library</a>
+        </nav>
+    </header>
+    
+    <div class="reader-controls">
+        <div class="mode-toggle">
+            <button @click="setMode('rsvp')" :class="{ active: mode === 'rsvp' }">RSVP</button>
+            <button @click="setMode('bionic')" :class="{ active: mode === 'bionic' }">Bionic</button>
+        </div>
+        
+        <div class="control-group">
+            <label>Speed (WPM)</label>
+            <input type="range" min="100" max="800" step="10" x-model="wpm" @input="updateWPM()">
+            <span x-text="wpm"></span>
+        </div>
+        
+        <div class="control-group" x-show="mode === 'rsvp'">
+            <label>Chunk Size</label>
+            <input type="range" min="1" max="5" step="1" x-model="chunkSize" @input="updateChunkSize()">
+            <span x-text="chunkSize"></span>
+        </div>
+        
+        <div class="control-group" x-show="mode === 'bionic'">
+            <label>Bold</label>
+            <input type="range" min="20" max="80" step="5" x-model="boldIntensity" @input="updateBoldIntensity()">
+            <span x-text="boldIntensity + '%'"></span>
+        </div>
+        
+        <div class="control-group">
+            <label>Font</label>
+            <select x-model="font" @change="updateFont()">
+                <option value="inter">Inter</option>
+                <option value="opendyslexic">OpenDyslexic</option>
+                <option value="system">System</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="reader-display" 
+         :class="mode + '-mode'"
+         :style="'font-family: ' + getFontFamily()">
+        <span x-show="mode === 'rsvp'" x-text="currentWord"></span>
+        <div x-show="mode === 'bionic'" x-ref="bionicContainer"></div>
+    </div>
+    
+    <div class="playback-controls">
+        <button @click="rewind()">◀◀</button>
+        <button @click="prev()">◀</button>
+        <button class="primary" @click="toggle()" x-text="isPlaying ? 'Pause' : 'Play'"></button>
+        <button @click="next()">▶</button>
+        <button @click="forward()">▶▶</button>
+    </div>
+    
+    <div class="progress-bar" @click="seekTo($event)">
+        <div class="progress-fill" :style="'width: ' + (progress * 100) + '%'"></div>
+    </div>
+    
+    <div class="stats">
+        <span x-text="'Word ' + currentIndex + ' of ' + totalWords"></span>
+        <span x-text="wordCount + ' total words'"></span>
+    </div>
+</div>
+
+<script src="{% static 'js/rsvp.js' %}"></script>
+<script src="{% static 'js/bionic.js' %}"></script>
+<script>
+function readerApp() {
+    return {
+        text: {{ text|safe|default:'""' }},
+        wordCount: {{ word_count|default:0 }},
+        sessionId: {{ session.id|default:'null' }},
+        mode: '{{ session.mode|default:"rsvp" }}',
+        wpm: {{ session.wpm|default:300 }},
+        chunkSize: {{ session.chunk_size|default:1 }},
+        boldIntensity: Math.round({{ session.bold_intensity|default:0.5 }} * 100),
+        font: '{{ session.font|default:"inter" }}',
+        currentIndex: {{ session.last_position|default:0 }},
+        
+        currentWord: '',
+        progress: 0,
+        isPlaying: false,
+        totalWords: 0,
+        
+        rsvpReader: null,
+        bionicReader: null,
+        saveTimeout: null,
+        
+        init() {
+            this.totalWords = this.text.split(/\s+/).filter(w => w.trim()).length;
+            this.setupReader();
+            this.loadPosition();
+            
+            document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+        },
+        
+        setupReader() {
+            this.rsvpReader = new RSVPReader({
+                text: this.text,
+                wpm: this.wpm,
+                chunkSize: this.chunkSize,
+                onStart: () => { this.isPlaying = true; },
+                onPause: () => { this.isPlaying = false; this.savePosition(); },
+                onComplete: () => { this.isPlaying = false; this.savePosition(); },
+                onWord: (word, index) => { 
+                    this.currentWord = word;
+                    this.currentIndex = index;
+                    this.progress = index / this.totalWords;
+                },
+                onProgress: (p) => { this.progress = p; }
+            });
+            
+            this.bionicReader = new BionicReader({
+                text: this.text,
+                boldIntensity: this.boldIntensity / 100,
+                onProgress: (p) => { this.progress = p; }
+            });
+            
+            this.rsvpReader.setPosition(this.currentIndex);
+            this.bionicReader.setPosition(this.currentIndex);
+            
+            if (this.mode === 'rsvp') {
+                this.currentWord = this.rsvpReader.getCurrentChunk();
+            } else {
+                this.$nextTick(() => {
+                    this.bionicReader.render(this.$refs.bionicContainer, this.currentIndex);
+                });
+            }
+        },
+        
+        toggle() {
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.toggle();
+            }
+        },
+        
+        rewind() {
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.rewind(20);
+                this.currentIndex = this.rsvpReader.currentIndex;
+            } else {
+                this.currentIndex = Math.max(0, this.currentIndex - 20);
+                this.bionicReader.goTo(this.currentIndex);
+            }
+            this.progress = this.currentIndex / this.totalWords;
+        },
+        
+        forward() {
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.forward(20);
+                this.currentIndex = this.rsvpReader.currentIndex;
+            } else {
+                this.currentIndex = Math.min(this.totalWords - 1, this.currentIndex + 20);
+                this.bionicReader.goTo(this.currentIndex);
+            }
+            this.progress = this.currentIndex / this.totalWords;
+        },
+        
+        prev() {
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.rewind(1);
+                this.currentIndex = this.rsvpReader.currentIndex;
+            } else {
+                this.currentIndex = Math.max(0, this.currentIndex - 1);
+                this.bionicReader.goTo(this.currentIndex);
+            }
+            this.progress = this.currentIndex / this.totalWords;
+        },
+        
+        next() {
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.forward(1);
+                this.currentIndex = this.rsvpReader.currentIndex;
+            } else {
+                this.currentIndex = Math.min(this.totalWords - 1, this.currentIndex + 1);
+                this.bionicReader.goTo(this.currentIndex);
+            }
+            this.progress = this.currentIndex / this.totalWords;
+        },
+        
+        setMode(newMode) {
+            this.mode = newMode;
+            if (this.mode === 'bionic') {
+                this.rsvpReader.pause();
+                this.$nextTick(() => {
+                    this.bionicReader.render(this.$refs.bionicContainer, this.currentIndex);
+                });
+            }
+            this.savePosition();
+        },
+        
+        updateWPM() {
+            this.rsvpReader.setWPM(parseInt(this.wpm));
+        },
+        
+        updateChunkSize() {
+            this.rsvpReader.setChunkSize(parseInt(this.chunkSize));
+        },
+        
+        updateBoldIntensity() {
+            this.bionicReader.setBoldIntensity(this.boldIntensity / 100);
+        },
+        
+        updateFont() {},
+        
+        getFontFamily() {
+            const fonts = {
+                'inter': "'Inter', sans-serif",
+                'opendyslexic': "'OpenDyslexic', sans-serif",
+                'system': "system-ui, -apple-system, sans-serif"
+            };
+            return fonts[this.font] || fonts['inter'];
+        },
+        
+        seekTo(event) {
+            const rect = event.target.getBoundingClientRect();
+            const percent = (event.clientX - rect.left) / rect.width;
+            const index = Math.floor(percent * this.totalWords);
+            this.currentIndex = index;
+            
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.goTo(index);
+            } else {
+                this.bionicReader.goTo(index);
+            }
+            this.progress = percent;
+        },
+        
+        handleKeyboard(e) {
+            if (e.target.tagName === 'INPUT') return;
+            
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    this.toggle();
+                    break;
+                case 'ArrowLeft':
+                    this.prev();
+                    break;
+                case 'ArrowRight':
+                    this.next();
+                    break;
+            }
+        },
+        
+        savePosition() {
+            if (this.saveTimeout) clearTimeout(this.saveTimeout);
+            
+            this.saveTimeout = setTimeout(() => {
+                fetch(`/api/reader/session/${this.sessionId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+                    },
+                    body: JSON.stringify({
+                        position: this.currentIndex,
+                        mode: this.mode,
+                        wpm: this.wpm,
+                        chunk_size: this.chunkSize,
+                        bold_intensity: this.boldIntensity / 100,
+                        font: this.font
+                    })
+                });
+            }, 1000);
+        },
+        
+        loadPosition() {
+            this.currentIndex = {{ session.last_position|default:0 }};
+        }
+    }
+}
+</script>
+{% endblock %}
