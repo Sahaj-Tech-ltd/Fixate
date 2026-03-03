@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Fixate{% endblock %}
+
+{% block content %}
+<div class="settings-container" x-data="settingsApp()">
+    <header class="settings-header">
+        <h1>Settings</h1>
+        <a href="{% url 'dashboard' %}" class="btn-secondary">Back to Dashboard</a>
+    </header>
+    
+    <main class="settings-main">
+        <section class="settings-section">
+            <h2>Reading Preferences</h2>
+            
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>Default Reading Mode</label>
+                    <select x-model="preferences.default_mode" @change="savePreferences()">
+                        <option value="rsvp">RSVP (Rapid Serial Visual Presentation)</option>
+                        <option value="bionic">Bionic Reading</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Default Speed (WPM)</label>
+                    <input type="range" min="100" max="800" step="10" 
+                           x-model="preferences.default_wpm" @input="savePreferences()">
+                    <span x-text="preferences.default_wpm + ' WPM'"></span>
+                </div>
+                
+                <div class="form-group" x-show="preferences.default_mode === 'rsvp'">
+                    <label>Default Chunk Size (words per flash)</label>
+                    <input type="range" min="1" max="5" step="1" 
+                           x-model="preferences.default_chunk_size" @input="savePreferences()">
+                    <span x-text="preferences.default_chunk_size"></span>
+                </div>
+                
+                <div class="form-group" x-show="preferences.default_mode === 'bionic'">
+                    <label>Default Bold Intensity</label>
+                    <input type="range" min="20" max="80" step="5" 
+                           x-model="boldIntensityPercent" @input="savePreferences()">
+                    <span x-text="boldIntensityPercent + '%'"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Default Font</label>
+                    <select x-model="preferences.default_font" @change="savePreferences()">
+                        <option value="inter">Inter</option>
+                        <option value="opendyslexic">OpenDyslexic</option>
+                        <option value="system">System Font</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Theme</label>
+                    <select x-model="preferences.theme" @change="savePreferences()">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                        <option value="sepia">Sepia</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+        
+        <section class="settings-section">
+            <h2>Account</h2>
+            
+            <div class="account-info">
+                <div class="info-row">
+                    <span>Email</span>
+                    <span>{{ request.user.email }}</span>
+                </div>
+                <div class="info-row">
+                    <span>Plan</span>
+                    <span class="plan-badge" x-text="preferences.tier === 'pro' ? 'Pro' : 'Free'"></span>
+                </div>
+                <div class="info-row" x-show="preferences.tier !== 'pro'">
+                    <span>Uploads Used</span>
+                    <span x-text="{{ request.user.textract_uploads_used }} + '/10'"></span>
+                </div>
+            </div>
+            
+            <div class="upgrade-section" x-show="preferences.tier !== 'pro'">
+                <h3>Upgrade to Pro</h3>
+                <p>$5/month - Unlimited uploads & all features</p>
+                <button class="btn-primary" disabled>Coming Soon</button>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+function settingsApp() {
+    return {
+        preferences: {
+            default_mode: '{{ preferences.default_mode }}',
+            default_wpm: {{ preferences.default_wpm }},
+            default_bold_intensity: {{ preferences.default_bold_intensity }},
+            default_chunk_size: {{ preferences.default_chunk_size }},
+            default_font: '{{ preferences.default_font }}',
+            theme: '{{ preferences.theme }}',
+            tier: '{{ request.user.tier }}'
+        },
+        
+        get boldIntensityPercent() {
+            return Math.round(this.preferences.default_bold_intensity * 100);
+        },
+        
+        set boldIntensityPercent(value) {
+            this.preferences.default_bold_intensity = value / 100;
+        },
+        
+        savePreferences: _.debounce(async function() {
+            await fetch('/api/reader/preferences/', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    default_mode: this.preferences.default_mode,
+                    default_wpm: parseInt(this.preferences.default_wpm),
+                    default_bold_intensity: this.preferences.default_bold_intensity,
+                    default_chunk_size: parseInt(this.preferences.default_chunk_size),
+                    default_font: this.preferences.default_font,
+                    theme: this.preferences.theme
+                })
+            });
+        }, 500),
+        
+        getCsrfToken() {
+            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        }
+    }
+}
+</script>
+
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.settings-header h1 {
+    font-size: 28px;
+}
+
+.settings-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+}
+
+.settings-section h2 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+
+.form-group label {
+    width: 200px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.form-group select,
+.form-group input[type="range"] {
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 200px;
+}
+
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.plan-badge {
+    background: var(--accent);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.upgrade-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 8px;
+}
+
+.upgrade-section h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.upgrade-section p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+@media (max-width: 600px) {
+    .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .form-group label {
+        width: 100%;
+    }
+    
+    .form-group select,
+    .form-group input[type="range"] {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

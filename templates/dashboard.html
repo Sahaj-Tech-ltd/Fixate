@@ -3,18 +3,432 @@
 {% block title %}Dashboard - Fixate{% endblock %}
 
 {% block content %}
-<div class="dashboard">
-    <header>
-        <h1>Fixate</h1>
+<div class="dashboard-container" x-data="dashboardApp()">
+    <header class="dashboard-header">
+        <div class="logo">
+            <h1>Fixate</h1>
+        </div>
         <nav>
-            <span>{{ request.user.email }}</span>
-            <a href="{% url 'account_logout' %}">Sign Out</a>
+            <div class="quota" x-show="!isPro">
+                <span x-text="quotaUsed + '/' + quotaMax + ' uploads used'"></span>
+            </div>
+            <span class="user-email">{{ request.user.email }}</span>
+            <a href="{% url 'account_logout' %}" class="btn-secondary">Sign Out</a>
         </nav>
     </header>
     
-    <main>
-        <h2>Your Library</h2>
-        <p>No documents yet. Upload a PDF to get started.</p>
+    <main class="dashboard-main">
+        <section class="upload-section">
+            <div class="upload-card" @click="$refs.fileInput.click()">
+                <input type="file" 
+                       accept=".pdf" 
+                       x-ref="fileInput" 
+                       @change="handleUpload($event)"
+                       style="display: none">
+                <div class="upload-icon">+</div>
+                <p>Upload PDF</p>
+            </div>
+        </section>
+        
+        <section class="documents-section">
+            <h2>Your Library</h2>
+            
+            <div class="documents-grid">
+                <template x-for="doc in documents" :key="doc.id">
+                    <div class="document-card" 
+                         :class="{ 'processing': doc.status === 'processing', 'error': doc.status === 'error' }">
+                        <div class="doc-icon">
+                            <span x-text="doc.status === 'processing' ? '⏳' : '📄'"></span>
+                        </div>
+                        <div class="doc-info">
+                            <h3 x-text="doc.title"></h3>
+                            <p x-text="doc.status === 'ready' ? doc.word_count + ' words' : doc.status"></p>
+                            <p x-show="doc.status === 'error'" class="error-msg" x-text="doc.error"></p>
+                        </div>
+                        <div class="doc-actions">
+                            <a x-show="doc.status === 'ready'" 
+                               :href="'/api/reader/read/' + doc.id + '/'" 
+                               class="btn-primary">Read</a>
+                            <button x-show="doc.status === 'processing'" 
+                                    @click="refreshStatus(doc)"
+                                    class="btn-secondary">Refresh</button>
+                            <button @click="deleteDoc(doc)" class="btn-delete">Delete</button>
+                        </div>
+                    </div>
+                </template>
+                
+                <div x-show="documents.length === 0" class="empty-state">
+                    <p>No documents yet. Upload a PDF to get started.</p>
+                </div>
+            </div>
+        </section>
     </main>
+    
+    <div x-show="uploading" class="upload-overlay">
+        <div class="upload-progress">
+            <p>Uploading and processing...</p>
+            <div class="spinner"></div>
+        </div>
+    </div>
 </div>
+
+<script>
+function dashboardApp() {
+    return {
+        documents: [],
+        quotaUsed: {{ quota_used }},
+        quotaMax: {{ quota_max|default:'null' }},
+        isPro: {{ is_pro|yesno:"true,false" }},
+        uploading: false,
+        
+        init() {
+            this.loadDocuments();
+        },
+        
+        async loadDocuments() {
+            const response = await fetch('/api/documents/', {
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+            const data = await response.json();
+            this.documents = data;
+        },
+        
+        async handleUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!this.isPro && this.quotaUsed >= this.quotaMax) {
+                alert('You have reached your upload limit. Upgrade to Pro for unlimited uploads.');
+                return;
+            }
+            
+            this.uploading = true;
+            
+            try {
+                const uploadResponse = await fetch('/api/documents/upload/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        file_size: file.size
+                    })
+                });
+                
+                const uploadData = await uploadResponse.json();
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(uploadData.error || 'Upload failed');
+                }
+                
+                const s3Response = await fetch(uploadData.upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': 'application/pdf'
+                    }
+                });
+                
+                if (!s3Response.ok) {
+                    throw new Error('Failed to upload file to storage');
+                }
+                
+                await fetch(`/api/documents/upload/${uploadData.document_id}/confirm/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCsrfToken()
+                    }
+                });
+                
+                this.documents.unshift({
+                    id: uploadData.document_id,
+                    title: file.name.replace('.pdf', ''),
+                    status: 'processing',
+                    word_count: 0
+                });
+                
+                this.quotaUsed++;
+                
+                this.pollStatus(uploadData.document_id);
+                
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                this.uploading = false;
+                event.target.value = '';
+            }
+        },
+        
+        async pollStatus(documentId) {
+            const poll = async () => {
+                const response = await fetch(`/api/documents/${documentId}/status/`);
+                const data = await response.json();
+                
+                const doc = this.documents.find(d => d.id === documentId);
+                if (doc) {
+                    doc.status = data.status;
+                    doc.word_count = data.word_count;
+                    if (data.error_message) {
+                        doc.error = data.error_message;
+                    }
+                }
+                
+                if (data.status === 'processing') {
+                    setTimeout(poll, 3000);
+                }
+            };
+            
+            setTimeout(poll, 2000);
+        },
+        
+        async refreshStatus(doc) {
+            const response = await fetch(`/api/documents/${doc.id}/status/`);
+            const data = await response.json();
+            doc.status = data.status;
+            doc.word_count = data.word_count;
+            if (data.error_message) {
+                doc.error = data.error_message;
+            }
+        },
+        
+        async deleteDoc(doc) {
+            if (!confirm('Delete this document?')) return;
+            
+            await fetch(`/api/documents/${doc.id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+            
+            this.documents = this.documents.filter(d => d.id !== doc.id);
+        },
+        
+        getCsrfToken() {
+            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        }
+    }
+}
+</script>
+
+<style>
+.dashboard-container {
+    min-height: 100vh;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.dashboard-header .logo h1 {
+    font-size: 24px;
+    color: var(--accent);
+}
+
+.dashboard-header nav {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.quota {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.user-email {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.dashboard-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px;
+}
+
+.upload-section {
+    margin-bottom: 40px;
+}
+
+.upload-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-card:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.upload-icon {
+    font-size: 48px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.documents-section h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.documents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.document-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.document-card.processing {
+    border-color: var(--accent);
+}
+
+.document-card.error {
+    border-color: #ef4444;
+}
+
+.doc-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.doc-info h3 {
+    font-size: 16px;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doc-info p {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.doc-info .error-msg {
+    color: #ef4444;
+}
+
+.doc-actions {
+    margin-top: auto;
+    padding-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.btn-primary {
+    padding: 8px 16px;
+    background: var(--accent);
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.btn-secondary {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-delete {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px;
+    color: var(--text-secondary);
+}
+
+.upload-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.upload-progress {
+    background: var(--bg-secondary);
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 20px auto 0;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px 20px;
+    }
+    
+    .dashboard-main {
+        padding: 20px;
+    }
+    
+    .upload-card {
+        padding: 40px 20px;
+    }
+    
+    .documents-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 {% endblock %}
