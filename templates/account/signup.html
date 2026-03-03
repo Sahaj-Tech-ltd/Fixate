@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - Fixate{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <h1>Create Account</h1>
+    
+    <form method="post" action="{% url 'account_signup' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Create Account</button>
+    </form>
+    
+    <div class="divider">or</div>
+    
+    <a href="{% url 'google_login' %}" class="oauth-btn google">
+        Continue with Google
+    </a>
+    
+    <p>Already have an account? <a href="{% url 'account_login' %}">Sign in</a></p>
+</div>
+{% endblock %}

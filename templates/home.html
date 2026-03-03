@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Fixate - ADHD-Friendly Reading{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Read Faster. Focus Better.</h1>
+    <p>RSVP and Bionic Reading for ADHD brains.</p>
+    
+    <div class="cta">
+        <a href="{% url 'account_signup' %}" class="btn primary">Get Started Free</a>
+        <a href="{% url 'account_login' %}" class="btn secondary">Sign In</a>
+    </div>
+</div>
+{% endblock %}
