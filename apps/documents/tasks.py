@@ -180,20 +180,10 @@ def check_textract_job(self, document_id, job_id):
                 all_blocks.extend(response["Blocks"])
                 next_token = response.get("NextToken")
 
-            text_blocks = [b for b in all_blocks if b["BlockType"] == "LINE"]
+            # Textract returns blocks in natural reading order (top-to-bottom, left-to-right).
+            # No sort needed — sorting by potentially-missing Geometry.BoundingBox.Top is fragile.
             extracted_text = "\n".join(
-                [
-                    b["Text"]
-                    for b in sorted(
-                        text_blocks,
-                        key=lambda x: (
-                            x.get("Page", 0),
-                            x.get("Geometry", {})
-                            .get("BoundingBox", {})
-                            .get("Top", 0),
-                        ),
-                    )
-                ]
+                b["Text"] for b in all_blocks if b["BlockType"] == "LINE"
             )
 
             page_blocks = [b for b in all_blocks if b["BlockType"] == "PAGE"]

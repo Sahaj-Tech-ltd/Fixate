@@ -45,17 +45,22 @@ class StartReadingView(APIView):
         
         preferences, _ = UserPreferences.objects.get_or_create(user=request.user)
         
-        session, created = ReadingSession.objects.get_or_create(
-            user=request.user,
-            document=document,
-            defaults={
-                'mode': preferences.default_mode,
-                'wpm': preferences.default_wpm,
-                'bold_intensity': preferences.default_bold_intensity,
-                'font': preferences.default_font,
-                'chunk_size': preferences.default_chunk_size,
-            }
-        )
+        from django.db import IntegrityError
+
+        try:
+            session, created = ReadingSession.objects.get_or_create(
+                user=request.user,
+                document=document,
+                defaults={
+                    'mode': preferences.default_mode,
+                    'wpm': preferences.default_wpm,
+                    'bold_intensity': preferences.default_bold_intensity,
+                    'font': preferences.default_font,
+                    'chunk_size': preferences.default_chunk_size,
+                }
+            )
+        except IntegrityError:
+            session = ReadingSession.objects.get(user=request.user, document=document)
         
         return Response({
             'session': ReadingSessionSerializer(session).data,
@@ -116,17 +121,22 @@ class ReaderView(LoginRequiredMixin, TemplateView):
         
         preferences, _ = UserPreferences.objects.get_or_create(user=self.request.user)
         
-        session, created = ReadingSession.objects.get_or_create(
-            user=self.request.user,
-            document=document,
-            defaults={
-                'mode': preferences.default_mode,
-                'wpm': preferences.default_wpm,
-                'bold_intensity': preferences.default_bold_intensity,
-                'font': preferences.default_font,
-                'chunk_size': preferences.default_chunk_size,
-            }
-        )
+        from django.db import IntegrityError
+
+        try:
+            session, created = ReadingSession.objects.get_or_create(
+                user=self.request.user,
+                document=document,
+                defaults={
+                    'mode': preferences.default_mode,
+                    'wpm': preferences.default_wpm,
+                    'bold_intensity': preferences.default_bold_intensity,
+                    'font': preferences.default_font,
+                    'chunk_size': preferences.default_chunk_size,
+                }
+            )
+        except IntegrityError:
+            session = ReadingSession.objects.get(user=self.request.user, document=document)
         
         context['document'] = document
         context['session'] = session

@@ -127,8 +127,9 @@ function settingsApp() {
                     default_chunk_size: parseInt(this.preferences.default_chunk_size),
                     default_font: this.preferences.default_font,
                     theme: this.preferences.theme
-                })
             });
+            localStorage.setItem('fixate-theme', this.preferences.theme);
+            document.documentElement.setAttribute('data-theme', this.preferences.theme);
         }, 500);
         
         getCsrfToken() {
