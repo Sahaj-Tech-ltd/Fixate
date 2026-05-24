@@ -58,6 +58,13 @@ dmypy.json
 
 staticfiles/
 
+db.sqlite3
+
+# PyInstaller build artifacts
+desktop/build/
+desktop/dist/
+*.spec
+
 .idea/
 .vscode/
 
