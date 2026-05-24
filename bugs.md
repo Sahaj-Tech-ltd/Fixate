@@ -42,10 +42,11 @@ function savePreferences() {
 
 ## HIGH (app runs but feature is broken)
 
-### BUG-5: Static files break in production
+### BUG-5: Static files break in production ✅ FIXED
 **File:** `config/settings.py:96` + `Dockerfile`
 **Problem:** `STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"` requires `python manage.py collectstatic` to generate manifest. Dockerfile doesn't run `collectstatic`. In production (DEBUG=False), static files 404 because manifest has no entries.
 **Fix:** Add `RUN python manage.py collectstatic --noinput` to Dockerfile after COPY.
+**Status:** Fixed — `collectstatic` added to Dockerfile.
 
 ### BUG-6: Dockerfile CMD vs docker-compose mismatch
 **Files:** `Dockerfile:22`, `docker-compose.yml:30`

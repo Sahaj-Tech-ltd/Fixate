@@ -13,3 +13,7 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Desktop mode: serve uploaded media files via Django
+if settings.FIXATE_MODE == "desktop":
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
