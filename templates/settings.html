@@ -111,7 +111,9 @@ function settingsApp() {
             this.preferences.default_bold_intensity = value / 100;
         },
         
-        savePreferences: _.debounce(async function() {
+        savePreferences() {
+            clearTimeout(this._debounce);
+            this._debounce = setTimeout(async () => {
             await fetch('/api/reader/preferences/', {
                 method: 'PATCH',
                 headers: {
@@ -127,7 +129,7 @@ function settingsApp() {
                     theme: this.preferences.theme
                 })
             });
-        }, 500),
+        }, 500);
         
         getCsrfToken() {
             return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
