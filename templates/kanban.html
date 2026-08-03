@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Kanban — Fixate{% endblock %}
+
+{% block body_class %}kanban-page{% endblock %}
+
+{% block content %}
+<div class="kanban-app" x-data="kanbanApp()" x-init="init()">
+    <header class="kanban-header">
+        <a href="{% url 'dashboard' %}" class="kanban-back">← Dashboard</a>
+        <h1>Task Board</h1>
+        <span class="kanban-subtitle">Drag tasks between columns. Click to edit.</span>
+    </header>
+
+    <div class="kanban-board">
+        <!-- ── To Do ── -->
+        <div class="kanban-column"
+             @dragover.prevent="handleDragOver($event, 'todo')"
+             @drop.prevent="handleDrop($event, 'todo')"
+             :class="{ 'drag-over': dragOverColumn === 'todo' }">
+            <div class="column-header">
+                <span>📋 To Do</span>
+                <span class="column-count" x-text="tasksByStatus('todo').length"></span>
+            </div>
+
+            <div class="column-add">
+                <input type="text"
+                       placeholder="+ Add task..."
+                       @keyup.enter="addTask($event, 'todo')"
+                       maxlength="200">
+            </div>
+
+            <div class="column-tasks">
+                <template x-for="task in tasksByStatus('todo')" :key="task.id">
+                    <div class="kanban-card"
+                         draggable="true"
+                         @dragstart="handleDragStart($event, task)"
+                         @dragend="handleDragEnd($event)"
+                         :data-task-id="task.id">
+                        <!-- Priority color bar -->
+                        <div class="card-priority" :style="{ background: task.priority_color }"></div>
+
+                        <div class="card-body">
+                            <!-- Title (click to edit) -->
+                            <div class="card-title"
+                                 :contenteditable="editingId === task.id"
+                                 @dblclick="startEdit(task)"
+                                 @blur="saveEdit(task, $event)"
+                                 @keydown.enter.prevent="saveEdit(task, $event)"
+                                 @keydown.escape.prevent="cancelEdit($event)"
+                                 x-text="task.title"
+                                 x-ref="editableTitle">
+                            </div>
+
+                            <!-- Bottom row: priority badge + due date -->
+                            <div class="card-meta">
+                                <button class="priority-badge"
+                                        :style="{ background: task.priority_color + '22', color: task.priority_color, borderColor: task.priority_color + '44' }"
+                                        @click.stop="cyclePriority(task)"
+                                        x-text="task.priority">
+                                </button>
+                                <span class="due-badge" x-show="task.due_date" x-text="formatDue(task.due_date)"></span>
+                            </div>
+                        </div>
+
+                        <!-- Delete -->
+                        <button class="card-delete" @click.stop="deleteTask(task)" title="Delete">×</button>
+                    </div>
+                </template>
+
+                <div class="column-empty" x-show="tasksByStatus('todo').length === 0">
+                    <p>No tasks yet</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Doing ── -->
+        <div class="kanban-column"
+             @dragover.prevent="handleDragOver($event, 'doing')"
+             @drop.prevent="handleDrop($event, 'doing')"
+             :class="{ 'drag-over': dragOverColumn === 'doing' }">
+            <div class="column-header">
+                <span>⚡ Doing</span>
+                <span class="column-count" x-text="tasksByStatus('doing').length"></span>
+            </div>
+
+            <div class="column-add">
+                <input type="text"
+                       placeholder="+ Add task..."
+                       @keyup.enter="addTask($event, 'doing')"
+                       maxlength="200">
+            </div>
+
+            <div class="column-tasks">
+                <template x-for="task in tasksByStatus('doing')" :key="task.id">
+                    <div class="kanban-card"
+                         draggable="true"
+                         @dragstart="handleDragStart($event, task)"
+                         @dragend="handleDragEnd($event)"
+                         :data-task-id="task.id">
+                        <div class="card-priority" :style="{ background: task.priority_color }"></div>
+                        <div class="card-body">
+                            <div class="card-title"
+                                 :contenteditable="editingId === task.id"
+                                 @dblclick="startEdit(task)"
+                                 @blur="saveEdit(task, $event)"
+                                 @keydown.enter.prevent="saveEdit(task, $event)"
+                                 @keydown.escape.prevent="cancelEdit($event)"
+                                 x-text="task.title">
+                            </div>
+                            <div class="card-meta">
+                                <button class="priority-badge"
+                                        :style="{ background: task.priority_color + '22', color: task.priority_color, borderColor: task.priority_color + '44' }"
+                                        @click.stop="cyclePriority(task)"
+                                        x-text="task.priority">
+                                </button>
+                                <span class="due-badge" x-show="task.due_date" x-text="formatDue(task.due_date)"></span>
+                            </div>
+                        </div>
+                        <button class="card-delete" @click.stop="deleteTask(task)" title="Delete">×</button>
+                    </div>
+                </template>
+                <div class="column-empty" x-show="tasksByStatus('doing').length === 0">
+                    <p>Nothing in progress</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Done ── -->
+        <div class="kanban-column"
+             @dragover.prevent="handleDragOver($event, 'done')"
+             @drop.prevent="handleDrop($event, 'done')"
+             :class="{ 'drag-over': dragOverColumn === 'done' }">
+            <div class="column-header">
+                <span>✅ Done</span>
+                <span class="column-count" x-text="tasksByStatus('done').length"></span>
+            </div>
+
+            <div class="column-add">
+                <input type="text"
+                       placeholder="+ Add task..."
+                       @keyup.enter="addTask($event, 'done')"
+                       maxlength="200">
+            </div>
+
+            <div class="column-tasks">
+                <template x-for="task in tasksByStatus('done')" :key="task.id">
+                    <div class="kanban-card done-card"
+                         draggable="true"
+                         @dragstart="handleDragStart($event, task)"
+                         @dragend="handleDragEnd($event)"
+                         :data-task-id="task.id">
+                        <div class="card-priority" :style="{ background: task.priority_color, opacity: 0.3 }"></div>
+                        <div class="card-body">
+                            <div class="card-title done-title"
+                                 :contenteditable="editingId === task.id"
+                                 @dblclick="startEdit(task)"
+                                 @blur="saveEdit(task, $event)"
+                                 @keydown.enter.prevent="saveEdit(task, $event)"
+                                 @keydown.escape.prevent="cancelEdit($event)"
+                                 x-text="task.title">
+                            </div>
+                            <div class="card-meta">
+                                <button class="priority-badge"
+                                        :style="{ background: task.priority_color + '11', color: task.priority_color, borderColor: task.priority_color + '22', opacity: 0.6 }"
+                                        @click.stop="cyclePriority(task)"
+                                        x-text="task.priority">
+                                </button>
+                            </div>
+                        </div>
+                        <button class="card-delete" @click.stop="deleteTask(task)" title="Delete">×</button>
+                    </div>
+                </template>
+                <div class="column-empty" x-show="tasksByStatus('done').length === 0">
+                    <p>Nothing completed yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function kanbanApp() {
+    return {
+        tasks: [],
+        editingId: null,
+        dragTask: null,
+        dragOverColumn: null,
+        priorTitle: '',
+
+        init() {
+            this.loadTasks();
+        },
+
+        async loadTasks() {
+            const res = await fetch('/api/reader/tasks/');
+            this.tasks = await res.json();
+        },
+
+        tasksByStatus(status) {
+            return this.tasks
+                .filter(t => t.status === status)
+                .sort((a, b) => a.position - b.position);
+        },
+
+        // ── Create ──
+
+        async addTask(event, status) {
+            const title = event.target.value.trim();
+            if (!title) return;
+            event.target.value = '';
+
+            const res = await fetch('/api/reader/tasks/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ title, status }),
+            });
+            const task = await res.json();
+            this.tasks.push(task);
+        },
+
+        // ── Edit ──
+
+        startEdit(task) {
+            this.editingId = task.id;
+            this.priorTitle = task.title;
+            this.$nextTick(() => {
+                const el = this.$el.querySelector(`[data-task-id="${task.id}"] .card-title`);
+                if (el) {
+                    el.focus();
+                    // Place cursor at end
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            });
+        },
+
+        async saveEdit(task, event) {
+            if (this.editingId !== task.id) return;
+            const newTitle = event.target.textContent.trim();
+            this.editingId = null;
+
+            if (!newTitle || newTitle === this.priorTitle) {
+                event.target.textContent = this.priorTitle;
+                return;
+            }
+
+            task.title = newTitle;
+            await fetch(`/api/reader/tasks/${task.id}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ title: newTitle }),
+            });
+        },
+
+        cancelEdit(event) {
+            event.target.textContent = this.priorTitle;
+            event.target.blur();
+            this.editingId = null;
+        },
+
+        // ── Priority cycle ──
+
+        async cyclePriority(task) {
+            const order = ['high', 'medium', 'low'];
+            const idx = order.indexOf(task.priority);
+            task.priority = order[(idx + 1) % 3];
+
+            const res = await fetch(`/api/reader/tasks/${task.id}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ priority: task.priority }),
+            });
+            const updated = await res.json();
+            task.priority_color = updated.priority_color;
+        },
+
+        // ── Delete ──
+
+        async deleteTask(task) {
+            await fetch(`/api/reader/tasks/${task.id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': this.getCsrfToken() },
+            });
+            this.tasks = this.tasks.filter(t => t.id !== task.id);
+        },
+
+        // ── Drag & Drop ──
+
+        handleDragStart(event, task) {
+            this.dragTask = task;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', task.id);
+            event.target.classList.add('dragging');
+        },
+
+        handleDragEnd(event) {
+            event.target.classList.remove('dragging');
+            this.dragTask = null;
+            this.dragOverColumn = null;
+        },
+
+        handleDragOver(event, status) {
+            this.dragOverColumn = status;
+        },
+
+        async handleDrop(event, newStatus) {
+            this.dragOverColumn = null;
+            const taskId = event.dataTransfer.getData('text/plain');
+            const task = this.tasks.find(t => t.id == taskId);
+            if (!task || task.status === newStatus) return;
+
+            // Update locally
+            task.status = newStatus;
+            // Compute position: put at end of target column
+            const colTasks = this.tasksByStatus(newStatus);
+            task.position = colTasks.length;
+
+            // Batch persist positions for all tasks in both columns
+            const updates = this.tasks.map((t, i) => ({
+                id: t.id,
+                status: t.status,
+                position: this.tasksByStatus(t.status).indexOf(t),
+            }));
+
+            await fetch('/api/reader/tasks/', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ tasks: updates }),
+            });
+        },
+
+        // ── Helpers ──
+
+        formatDue(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr + 'T00:00:00');
+            const now = new Date();
+            const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+            if (diff < 0) return '⚠ Overdue';
+            if (diff === 0) return '📅 Today';
+            if (diff === 1) return '📅 Tomorrow';
+            if (diff <= 7) return `📅 ${diff}d`;
+            return '📅 ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        },
+
+        getCsrfToken() {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            return el ? el.value : '';
+        },
+    };
+}
+</script>
+{% endblock %}

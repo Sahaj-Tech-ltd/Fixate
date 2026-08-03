@@ -5,7 +5,6 @@ from django.core.cache import cache
 from django.conf import settings
 
 from apps.documents.models import Document
-from apps.users.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +32,14 @@ def _get_s3_client():
 
 
 def _process_desktop(document):
-    """Desktop mode: Tesseract OCR on local file (synchronous).
+    """Local Tesseract OCR (used in desktop mode and cloud-without-S3 mode).
 
-    Called directly by process_document when FIXATE_MODE=desktop.
+    Called directly by process_document when S3 is not configured.
     """
     from config.backends import storage, ocr
 
     file_path = storage.get_local_path(document.file_key)
-    result = ocr.extract_text(file_path)
+    result = ocr._extract_text_tesseract(file_path)
 
     document.raw_text = result["text"]
     document.page_count = result["pages"]
@@ -54,6 +53,19 @@ def _process_desktop(document):
         result["word_count"],
         result["pages"],
     )
+
+    # Extract figures after OCR
+    _extract_figures_safe(document)
+
+
+def _extract_figures_safe(document):
+    """Extract figures, logging but never failing the document processing."""
+    try:
+        from apps.documents.figure_extraction import extract_figures
+        count = extract_figures(document)
+        logger.info("Extracted %d figures from document %d", count, document.id)
+    except Exception as e:
+        logger.warning("Figure extraction failed for doc %d (non-fatal): %s", document.id, e)
 
 
 @shared_task(bind=True, max_retries=3)
@@ -75,13 +87,24 @@ def process_document(self, document_id):
         except Exception as e:
             logger.error("Desktop OCR error for document %d: %s", document_id, e)
             document.status = Document.STATUS_ERROR
-            document.error_message = str(e)
+            document.error_message = "Document processing failed. Please try again."
             document.save()
         return
 
-    # Cloud mode: Textract async flow (existing, unchanged)
+    # Cloud without S3: fall back to local Tesseract OCR
+    from config.backends.storage import _s3_configured
+    if not _s3_configured():
+        try:
+            _process_desktop(document)
+        except Exception as e:
+            logger.error("Local OCR error for document %d: %s", document_id, e)
+            document.status = Document.STATUS_ERROR
+            document.error_message = "Document processing failed. Please try again."
+            document.save()
+        return
+
+    # Cloud mode with S3: Textract async flow
     try:
-        import boto3
         from botocore.exceptions import ClientError
 
         s3_client = _get_s3_client()
@@ -125,19 +148,18 @@ def process_document(self, document_id):
 
         logger.error("Textract error for document %d: %s", document_id, e)
         document.status = Document.STATUS_ERROR
-        document.error_message = str(e)
+        document.error_message = "Document processing failed. Please try again."
         document.save()
 
     except Exception as e:
         logger.error("Error processing document %d: %s", document_id, e)
         document.status = Document.STATUS_ERROR
-        document.error_message = str(e)
+        document.error_message = "An unexpected error occurred. Please try again."
         document.save()
 
 
 @shared_task(bind=True, max_retries=30)
 def check_textract_job(self, document_id, job_id):
-    import boto3
     from botocore.exceptions import ClientError
 
     try:
@@ -160,7 +182,7 @@ def check_textract_job(self, document_id, job_id):
                 "StatusMessage", "OCR processing failed"
             )
             document.status = Document.STATUS_ERROR
-            document.error_message = error_message
+            document.error_message = "OCR processing failed. Please try again."
             document.save()
             logger.error(
                 "Textract job failed for document %d: %s",
@@ -204,14 +226,15 @@ def check_textract_job(self, document_id, job_id):
             document.status = Document.STATUS_READY
             document.save()
 
-            document.user.increment_textract_usage()
-
             logger.info(
                 "Successfully processed document %d: %d words, %d pages",
                 document_id,
                 document.word_count,
                 page_count,
             )
+
+            # Extract figures after successful OCR
+            _extract_figures_safe(document)
 
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "")
@@ -233,7 +256,7 @@ def check_textract_job(self, document_id, job_id):
             e,
         )
         document.status = Document.STATUS_ERROR
-        document.error_message = str(e)
+        document.error_message = "Document processing failed. Please try again."
         document.save()
 
     except self.MaxRetriesExceededError:
@@ -247,5 +270,5 @@ def check_textract_job(self, document_id, job_id):
             "Unexpected error for document %d: %s", document_id, e
         )
         document.status = Document.STATUS_ERROR
-        document.error_message = str(e)
+        document.error_message = "An unexpected error occurred. Please try again."
         document.save()

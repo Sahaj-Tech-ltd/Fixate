@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fixate — Focus</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: #7c3aed;
+    --text: #ffffff;
+    --glass-bg: rgba(20, 20, 30, 0.65);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-blur: blur(24px) saturate(140%);
+  }
+
+  body {
+    font-family: 'Nunito', -apple-system, sans-serif;
+    width: 100vw; height: 100vh; overflow: hidden;
+    background: #0a0a0f;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ===== BACKGROUND LAYER ===== */
+  .bg-layer {
+    position: fixed; inset: 0; z-index: 0;
+    background-size: cover;
+    background-position: center;
+    transition: background-image 1.2s ease;
+    will-change: background-image;
+  }
+  .bg-layer::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.35) 100%);
+  }
+
+  /* ===== TOP BAR ===== */
+  .top-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 28px 32px;
+    pointer-events: none;
+  }
+  .top-bar > * { pointer-events: auto; }
+
+  .brand {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    line-height: 1.15;
+  }
+  .brand span {
+    display: block; font-size: 11px; font-weight: 500;
+    opacity: 0.55; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+
+  .top-right {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
+  }
+
+  /* ===== TIMER WIDGET (Flocus style) ===== */
+  .timer-widget {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 18px 24px;
+    min-width: 160px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .timer-widget .tw-label {
+    font-size: 12px; font-weight: 600; opacity: 0.7;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+  }
+  .timer-widget .tw-time {
+    font-size: 42px; font-weight: 800; letter-spacing: -1px;
+    font-variant-numeric: tabular-nums; margin-bottom: 12px;
+    line-height: 1;
+  }
+  .timer-widget .tw-btn {
+    background: var(--accent);
+    color: white; border: none; border-radius: 10px;
+    padding: 9px 32px; font-size: 14px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .timer-widget .tw-btn:hover { opacity: 0.9; transform: scale(1.03); }
+  .timer-widget .tw-btn:active { transform: scale(0.97); }
+
+  .tw-mode-row {
+    display: flex; gap: 6px; margin-top: 10px; justify-content: center;
+  }
+  .tw-mode-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    transition: background 0.3s;
+  }
+  .tw-mode-dot.active { background: var(--accent); }
+
+  /* ===== QUOTE (top-right, clock mode) ===== */
+  .top-quote {
+    font-size: 13px; font-weight: 400; opacity: 0.6;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    text-align: right; max-width: 280px; line-height: 1.4;
+  }
+
+  /* ===== CENTER: GREETING + CLOCK ===== */
+  .center-content {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 5; text-align: center;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .center-content.hidden { opacity: 0; pointer-events: none; }
+
+  .greeting {
+    font-size: 20px; font-weight: 400; opacity: 0.85;
+    margin-bottom: 16px; letter-spacing: 0.2px;
+  }
+  .big-clock {
+    font-size: 140px; font-weight: 900; letter-spacing: -3px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== BOTTOM DOCK ===== */
+  .dock {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 0 32px 24px;
+    pointer-events: none;
+  }
+  .dock > * { pointer-events: auto; }
+
+  .dock-group {
+    display: flex; gap: 10px;
+  }
+  .dock-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    color: white; font-size: 17px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    position: relative;
+  }
+  .dock-btn:hover {
+    background: rgba(60, 60, 80, 0.75);
+    transform: translateY(-2px);
+  }
+  .dock-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+  }
+  .dock-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ===== SLIDE PANELS (preserved from Fixate) ===== */
+  .slide-panel {
+    position: fixed; top: 0; right: -440px; width: 420px; height: 100vh;
+    z-index: 100;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-left: 1px solid var(--glass-border);
+    transition: right 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+    padding: 24px;
+    overflow-y: auto;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.4);
+  }
+  .slide-panel.open { right: 0; }
+  .panel-overlay {
+    position: fixed; inset: 0; z-index: 99; background: rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .panel-overlay.show { opacity: 1; pointer-events: auto; }
+
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .panel-header h3 { font-size: 16px; font-weight: 700; }
+  .panel-close {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: none; color: white;
+    cursor: pointer; font-size: 16px;
+  }
+  .panel-close:hover { background: rgba(255,255,255,0.15); }
+
+  /* scene picker inside background panel */
+  .scene-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .scene-thumb {
+    aspect-ratio: 16/10; border-radius: 10px; background-size: cover;
+    background-position: center; cursor: pointer; border: 2px solid transparent;
+    transition: all 0.2s; position: relative; overflow: hidden;
+  }
+  .scene-thumb:hover { border-color: rgba(255,255,255,0.5); }
+  .scene-thumb.active { border-color: var(--accent); }
+  .scene-thumb .label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 6px 8px; font-size: 10px; font-weight: 600;
+    background: rgba(0,0,0,0.6); text-align: center;
+  }
+
+  /* timer mode pills in center */
+  .mode-pills {
+    display: flex; gap: 8px; justify-content: center; margin-top: 20px;
+  }
+  .mode-pill {
+    padding: 8px 18px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+    backdrop-filter: blur(10px);
+  }
+  .mode-pill:hover { background: rgba(255,255,255,0.1); color: white; }
+  .mode-pill.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* ===== TIMER RING (hero mode - hidden by default) ===== */
+  .timer-hero {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 5; display: none; flex-direction: column; align-items: center;
+    pointer-events: none;
+  }
+  .timer-hero.visible {
+    display: flex;
+    pointer-events: auto;
+  }
+  .timer-hero .ring-container {
+    position: relative; width: 260px; height: 260px;
+  }
+  .timer-hero .ring-container svg {
+    width: 100%; height: 100%; transform: rotate(-90deg);
+  }
+  .timer-hero .ring-bg {
+    fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 6;
+  }
+  .timer-hero .ring-fg {
+    fill: none; stroke: var(--accent); stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+  }
+  .timer-hero .hero-time {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+  .timer-hero .hero-label {
+    font-size: 14px; font-weight: 600; opacity: 0.6; margin-top: 4px;
+  }
+  .timer-hero .hero-controls {
+    display: flex; gap: 14px; margin-top: 20px;
+  }
+  .timer-hero .hero-controls button {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--glass-bg); border: 1px solid var(--glass-border);
+    color: white; font-size: 18px; cursor: pointer;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    transition: all 0.2s;
+  }
+  .timer-hero .hero-controls button:hover {
+    background: rgba(124,58,237,0.3);
+  }
+
+  /* ===== NOISE GENERATOR INLINE ===== */
+  .noise-row {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+  }
+  .noise-row button {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05); color: white; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+  }
+  .noise-row button.active { background: var(--accent); border-color: var(--accent); }
+
+  /* misc */
+  .control-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; font-size: 13px;
+  }
+  .control-row label { opacity: 0.8; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<!-- ===== BACKGROUND ===== -->
+<div class="bg-layer" id="bg" style="background-image: url('/fixate/static/img/flocus-bg-1-clean.png')"></div>
+
+<!-- ===== TOP BAR ===== -->
+<div class="top-bar">
+  <div class="brand">fixate<span>by Sahaj Tech</span></div>
+  <div class="top-right">
+    <div class="top-quote" id="quote">"A thankful heart is a happy one."</div>
+    <div class="timer-widget" id="timerWidget">
+      <div class="tw-label" id="twLabel">Focus</div>
+      <div class="tw-time" id="twTime">25:00</div>
+      <button class="tw-btn" id="twBtn" onclick="toggleTimer()">Start</button>
+      <div class="tw-mode-row">
+        <div class="tw-mode-dot active"></div>
+        <div class="tw-mode-dot"></div>
+        <div class="tw-mode-dot"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CENTER CLOCK MODE ===== -->
+<div class="center-content" id="centerClock">
+  <div class="greeting" id="greeting">Good evening, Harsh.</div>
+  <div class="big-clock" id="bigClock">--:--</div>
+  <div class="mode-pills">
+    <button class="mode-pill active" data-mode="focus" onclick="setTimerMode('focus', 25)">🍅 Focus</button>
+    <button class="mode-pill" data-mode="short" onclick="setTimerMode('short', 5)">☕ Short Break</button>
+    <button class="mode-pill" data-mode="long" onclick="setTimerMode('long', 15)">🌿 Long Break</button>
+  </div>
+</div>
+
+<!-- ===== TIMER HERO (hidden until timer starts) ===== -->
+<div class="timer-hero" id="timerHero">
+  <div class="ring-container">
+    <svg viewBox="0 0 260 260">
+      <circle class="ring-bg" cx="130" cy="130" r="124"/>
+      <circle class="ring-fg" id="ringPath" cx="130" cy="130" r="124"
+        stroke-dasharray="779.1" stroke-dashoffset="0"/>
+    </svg>
+    <div class="hero-time" id="heroTime">25:00</div>
+  </div>
+  <div class="hero-label" id="heroLabel">Focus</div>
+  <div class="hero-controls">
+    <button onclick="toggleTimer()" id="heroPlayBtn">▶</button>
+    <button onclick="resetTimer()">↺</button>
+  </div>
+</div>
+
+<!-- ===== BOTTOM DOCK ===== -->
+<div class="dock">
+  <div class="dock-group">
+    <button class="dock-btn" title="Scenes" onclick="openPanel('scenes')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </button>
+    <button class="dock-btn active" title="Home" onclick="showClockMode()">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+    </button>
+    <button class="dock-btn" title="Tasks" onclick="openPanel('tasks')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+    </button>
+    <button class="dock-btn" title="Sounds" onclick="openPanel('sounds')">
+      <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+    </button>
+  </div>
+  <div class="dock-group">
+    <button class="dock-btn" title="Reader" onclick="openPanel('reader')">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+    </button>
+    <button class="dock-btn" title="Settings" onclick="openPanel('settings')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
+    <button class="dock-btn" title="Fullscreen" onclick="document.documentElement.requestFullscreen()">
+      <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ===== SLIDE PANELS ===== -->
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+
+<!-- SCENES PANEL -->
+<div class="slide-panel" id="panel-scenes">
+  <div class="panel-header"><h3>🎨 Scenes</h3><button class="panel-close" onclick="closePanel()">✕</button></div>
+  <div style="display:flex;gap:6px;margin-bottom:14px">
+    <button class="mode-pill active" onclick="switchSceneTab('images')" id="sceneTabImages">🖼️ Images</button>
+    <button class="mode-pill" onclick="switchSceneTab('gradients')" id="sceneTabGradients">🌈 Gradients</button>
+  </div>
+  <div id="sceneTab-images" class="scene-grid" style="max-height:65vh;overflow-y:auto">
+    <!-- Populated dynamically by loadImageScenes() -->
+  </div>
+  <div id="sceneTab-gradients" class="scene-grid" style="display:none;max-height:65vh;overflow-y:auto">
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #1a1a2e, #16213e)" onclick="setSceneCustom('linear-gradient(135deg, #1a1a2e, #16213e)', this)"><div class="label">Midnight</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #0f0c29, #302b63, #24243e)" onclick="setSceneCustom('linear-gradient(135deg, #0f0c29, #302b63, #24243e)', this)"><div class="label">Deep Purple</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #2c3e50, #3498db)" onclick="setSceneCustom('linear-gradient(135deg, #2c3e50, #3498db)', this)"><div class="label">Ocean</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #42275a, #734b6d)" onclick="setSceneCustom('linear-gradient(135deg, #42275a, #734b6d)', this)"><div class="label">Plum</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b)" onclick="setSceneCustom('linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b)', this)"><div class="label">Sunset</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #000428, #004e92)" onclick="setSceneCustom('linear-gradient(135deg, #000428, #004e92)', this)"><div class="label">Deep Blue</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #1b2735, #090a0f)" onclick="setSceneCustom('linear-gradient(135deg, #1b2735, #090a0f)', this)"><div class="label">Starlight</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #4a0e4e, #7b2d8e, #e060a0)" onclick="setSceneCustom('linear-gradient(135deg, #4a0e4e, #7b2d8e, #e060a0)', this)"><div class="label">Neon Pink</div></div>
+    <div class="scene-thumb" style="background:linear-gradient(135deg, #0c1445, #2c1654, #691c4a)" onclick="setSceneCustom('linear-gradient(135deg, #0c1445, #2c1654, #691c4a)', this)"><div class="label">Twilight</div></div>
+  </div>
+</div>
+
+<!-- TASKS PANEL -->
+<div class="slide-panel" id="panel-tasks">
+  <div class="panel-header"><h3>📋 Tasks</h3><button class="panel-close" onclick="closePanel()">✕</button></div>
+  <div style="display:flex;gap:6px;margin-bottom:14px">
+    <input id="taskInput" type="text" placeholder="Add a task..." style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;font-family:inherit;font-size:13px" onkeydown="if(event.key==='Enter')addTask()">
+    <button onclick="addTask()" style="padding:10px 16px;border-radius:8px;background:var(--accent);border:none;color:white;cursor:pointer;font-family:inherit;font-weight:600">Add</button>
+  </div>
+  <div id="taskList" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<!-- SOUNDS PANEL -->
+<div class="slide-panel" id="panel-sounds">
+  <div class="panel-header"><h3>🔊 Sounds</h3><button class="panel-close" onclick="closePanel()">✕</button></div>
+  <div style="font-size:12px;opacity:0.6;margin-bottom:12px">NOISE GENERATOR</div>
+  <div class="noise-row">
+    <button id="noiseWhite" onclick="toggleNoise('white')">⚪ White</button>
+    <button id="noisePink" onclick="toggleNoise('pink')">🌧️ Pink</button>
+    <button id="noiseBrown" onclick="toggleNoise('brown')">🟤 Brown</button>
+  </div>
+  <div class="control-row"><label>Volume</label><span id="noiseVolLabel">50%</span></div>
+  <input type="range" min="0" max="100" value="50" id="noiseVol" oninput="setNoiseVolume(this.value)">
+</div>
+
+<!-- READER PANEL -->
+<div class="slide-panel" id="panel-reader">
+  <div class="panel-header"><h3>📖 Reader</h3><button class="panel-close" onclick="closePanel()">✕</button></div>
+  <div style="display:flex;gap:6px;margin-bottom:14px">
+    <button id="readerNormal" class="mode-pill active" onclick="setReaderMode('normal')">📄 Normal</button>
+    <button id="readerRsvp" class="mode-pill" onclick="setReaderMode('rsvp')">⚡ RSVP</button>
+    <button id="readerFlow" class="mode-pill" onclick="setReaderMode('flow')">🌊 Flow</button>
+  </div>
+  <div style="border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:30px;text-align:center;cursor:pointer" onclick="document.getElementById('readerFile').click()">
+    <div style="font-size:40px;margin-bottom:10px">📁</div>
+    <div style="font-size:13px;opacity:0.6">Drop PDF or click to upload</div>
+    <input type="file" id="readerFile" accept=".pdf,.txt" style="display:none" onchange="loadReaderFile(this.files[0])">
+  </div>
+  <div id="readerContent" style="margin-top:16px;font-size:14px;line-height:1.7;max-height:60vh;overflow-y:auto;white-space:pre-wrap"></div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div class="slide-panel" id="panel-settings">
+  <div class="panel-header"><h3>⚙️ Settings</h3><button class="panel-close" onclick="closePanel()">✕</button></div>
+  <div class="control-row"><label>Focus Duration</label><span id="focusDurLabel">25 min</span></div>
+  <input type="range" min="5" max="120" value="25" id="focusDur" oninput="updateDuration('focus', this.value)">
+  <div class="control-row"><label>Short Break</label><span id="shortDurLabel">5 min</span></div>
+  <input type="range" min="1" max="30" value="5" id="shortDur" oninput="updateDuration('short', this.value)">
+  <div class="control-row"><label>Long Break</label><span id="longDurLabel">15 min</span></div>
+  <input type="range" min="5" max="60" value="15" id="longDur" oninput="updateDuration('long', this.value)">
+</div>
+
+<!-- ===== AUDIO CONTEXT (lazy) ===== -->
+<script>
+// ========== STATE ==========
+const state = {
+  scene: '/fixate/static/img/flocus-bg-1-clean.png',
+  mode: 'focus', // focus | short | long
+  durations: { focus: 25, short: 5, long: 15 },
+  timeLeft: 25 * 60,
+  totalTime: 25 * 60,
+  running: false,
+  interval: null,
+  clockMode: true,
+  currentPanel: null,
+};
+
+// ========== CLOCK ==========
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('bigClock').textContent = `${h}:${m}`;
+
+  const hour = now.getHours();
+  let greeting = 'Good evening';
+  if (hour < 12) greeting = 'Good morning';
+  else if (hour < 17) greeting = 'Good afternoon';
+  document.getElementById('greeting').textContent = `${greeting}, Harsh.`;
+
+  // Random quote
+  const quotes = [
+    '"A thankful heart is a happy one."',
+    '"Small steps every day."',
+    '"Focus on the present moment."',
+    '"Your future is created by what you do today."',
+    '"Discipline is the bridge between goals and accomplishment."',
+  ];
+  document.getElementById('quote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+}
+updateClock();
+setInterval(updateClock, 30000);
+
+// ========== TIMER ==========
+function toggleTimer() {
+  if (state.running) {
+    pauseTimer();
+  } else {
+    startTimer();
+  }
+}
+
+function startTimer() {
+  if (state.interval) return;
+  state.running = true;
+  document.getElementById('twBtn').textContent = 'Pause';
+  document.getElementById('heroPlayBtn').textContent = '⏸';
+
+  // Show hero, hide clock
+  document.getElementById('centerClock').classList.add('hidden');
+  document.getElementById('timerHero').classList.add('visible');
+  document.getElementById('heroTime').textContent = formatTime(state.timeLeft);
+  document.getElementById('heroLabel').textContent = state.mode === 'focus' ? 'Focus' : state.mode === 'short' ? 'Short Break' : 'Long Break';
+  updateRing();
+
+  state.interval = setInterval(() => {
+    state.timeLeft--;
+    if (state.timeLeft <= 0) {
+      clearInterval(state.interval);
+      state.interval = null;
+      state.running = false;
+      document.getElementById('twBtn').textContent = 'Start';
+      document.getElementById('heroPlayBtn').textContent = '▶';
+      // Notification sound
+      try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f4B/f3+Af39/gH9/f4B/f3+Af39/gH9/f4B/f3+Af39/gH9/f4B/f3+Af39/gH9/f4B/f3+Af39/gH9/f4B/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/fQCAA==').play(); } catch(e) {}
+      showClockMode();
+      return;
+    }
+    document.getElementById('twTime').textContent = formatTime(state.timeLeft);
+    document.getElementById('heroTime').textContent = formatTime(state.timeLeft);
+    updateRing();
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(state.interval);
+  state.interval = null;
+  state.running = false;
+  document.getElementById('twBtn').textContent = 'Start';
+  document.getElementById('heroPlayBtn').textContent = '▶';
+}
+
+function resetTimer() {
+  pauseTimer();
+  state.timeLeft = state.durations[state.mode] * 60;
+  state.totalTime = state.timeLeft;
+  document.getElementById('twTime').textContent = formatTime(state.timeLeft);
+  document.getElementById('heroTime').textContent = formatTime(state.timeLeft);
+  updateRing();
+}
+
+function updateRing() {
+  const ring = document.getElementById('ringPath');
+  const circumference = 2 * Math.PI * 124; // ~779.1
+  const progress = state.timeLeft / (state.durations[state.mode] * 60);
+  ring.style.strokeDashoffset = circumference * (1 - progress);
+}
+
+function setTimerMode(mode, mins) {
+  state.mode = mode;
+  state.durations[mode] = mins;
+  state.timeLeft = mins * 60;
+  state.totalTime = state.timeLeft;
+  document.getElementById('twTime').textContent = formatTime(state.timeLeft);
+  document.getElementById('twLabel').textContent = mode === 'focus' ? 'Focus' : mode === 'short' ? 'Short Break' : 'Long Break';
+  document.getElementById('heroTime').textContent = formatTime(state.timeLeft);
+  document.getElementById('heroLabel').textContent = mode === 'focus' ? 'Focus' : mode === 'short' ? 'Short Break' : 'Long Break';
+
+  // Update mode dots
+  const dots = document.querySelectorAll('.tw-mode-dot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === (mode === 'focus' ? 0 : mode === 'short' ? 1 : 2)));
+
+  // Update mode pills
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[data-mode="${mode}"]`)?.classList.add('active');
+
+  updateRing();
+}
+
+function showClockMode() {
+  document.getElementById('centerClock').classList.remove('hidden');
+  document.getElementById('timerHero').classList.remove('visible');
+  state.clockMode = true;
+  pauseTimer();
+  resetTimer();
+  updateClock();
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function updateDuration(type, val) {
+  state.durations[type] = parseInt(val);
+  document.getElementById(`${type}DurLabel`).textContent = `${val} min`;
+  if (state.mode === type) {
+    state.timeLeft = parseInt(val) * 60;
+    state.totalTime = state.timeLeft;
+    document.getElementById('twTime').textContent = formatTime(state.timeLeft);
+  }
+}
+
+// ========== SCENES ==========
+function setScene(url, el) {
+  document.getElementById('bg').style.backgroundImage = `url('${url}')`;
+  state.scene = url;
+  document.querySelectorAll('#panel-scenes .scene-thumb').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function setSceneCustom(css, el) {
+  document.getElementById('bg').style.backgroundImage = css;
+  document.querySelectorAll('#panel-scenes .scene-thumb').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ========== PANELS ==========
+function openPanel(name) {
+  // Close current panel
+  if (state.currentPanel) {
+    document.getElementById(`panel-${state.currentPanel}`).classList.remove('open');
+  }
+  state.currentPanel = name;
+  document.getElementById(`panel-${name}`).classList.add('open');
+  document.getElementById('panelOverlay').classList.add('show');
+}
+
+function closePanel() {
+  if (state.currentPanel) {
+    document.getElementById(`panel-${state.currentPanel}`).classList.remove('open');
+    state.currentPanel = null;
+  }
+  document.getElementById('panelOverlay').classList.remove('show');
+}
+
+// ========== NOISE ==========
+let audioCtx = null;
+let noiseNode = null;
+let noiseGain = null;
+let currentNoise = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function toggleNoise(type) {
+  if (currentNoise === type) {
+    stopNoise();
+    return;
+  }
+  currentNoise = type;
+  startNoise(type);
+  document.querySelectorAll('#panel-sounds .noise-row button').forEach(b => b.classList.remove('active'));
+  document.getElementById(`noise${type.charAt(0).toUpperCase() + type.slice(1)}`).classList.add('active');
+}
+
+function startNoise(type) {
+  const ctx = getAudioCtx();
+  stopNoise();
+
+  const bufferSize = 2 * ctx.sampleRate;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  if (type === 'white') {
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  } else if (type === 'pink') {
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.0168980;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+      b6 = white * 0.115926;
+    }
+  } else if (type === 'brown') {
+    let lastOut = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      data[i] = (lastOut + 0.02 * white) / 1.02;
+      lastOut = data[i];
+      data[i] *= 3.5;
+    }
+  }
+
+  noiseNode = ctx.createBufferSource();
+  noiseNode.buffer = buffer;
+  noiseNode.loop = true;
+
+  noiseGain = ctx.createGain();
+  noiseGain.gain.value = document.getElementById('noiseVol').value / 100 * 0.3;
+
+  noiseNode.connect(noiseGain);
+  noiseGain.connect(ctx.destination);
+  noiseNode.start();
+}
+
+function stopNoise() {
+  if (noiseNode) {
+    try { noiseNode.stop(); } catch(e) {}
+    noiseNode.disconnect();
+    noiseNode = null;
+  }
+  if (noiseGain) { noiseGain.disconnect(); noiseGain = null; }
+  currentNoise = null;
+  document.querySelectorAll('#panel-sounds .noise-row button').forEach(b => b.classList.remove('active'));
+}
+
+function setNoiseVolume(val) {
+  document.getElementById('noiseVolLabel').textContent = `${val}%`;
+  if (noiseGain) noiseGain.gain.value = val / 100 * 0.3;
+}
+
+// ========== TASKS ==========
+function loadTasks() {
+  try { return JSON.parse(localStorage.getItem('fixate_tasks') || '[]'); } catch(e) { return []; }
+}
+function saveTasks(tasks) { localStorage.setItem('fixate_tasks', JSON.stringify(tasks)); }
+
+function renderTasks() {
+  const tasks = loadTasks();
+  const el = document.getElementById('taskList');
+  el.innerHTML = tasks.map((t, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTask(${i})" style="accent-color:var(--accent)">
+      <span style="flex:1;font-size:13px;${t.done ? 'text-decoration:line-through;opacity:0.4' : ''}">${t.text}</span>
+      <button onclick="deleteTask(${i})" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:16px">×</button>
+    </div>
+  `).join('');
+}
+
+function addTask() {
+  const input = document.getElementById('taskInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const tasks = loadTasks();
+  tasks.push({ text, done: false });
+  saveTasks(tasks);
+  input.value = '';
+  renderTasks();
+}
+
+function toggleTask(i) {
+  const tasks = loadTasks();
+  tasks[i].done = !tasks[i].done;
+  saveTasks(tasks);
+  renderTasks();
+}
+
+function deleteTask(i) {
+  const tasks = loadTasks();
+  tasks.splice(i, 1);
+  saveTasks(tasks);
+  renderTasks();
+}
+
+// ========== READER ==========
+function loadReaderFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    document.getElementById('readerContent').textContent = text.substring(0, 50000);
+  };
+  if (file.type === 'application/pdf') {
+    // Basic PDF support via PDF.js
+    if (typeof pdfjsLib !== 'undefined') {
+      reader.readAsArrayBuffer(file);
+      reader.onload = async function(e) {
+        const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map(it => it.str).join(' ') + '\n\n';
+        }
+        document.getElementById('readerContent').textContent = fullText.substring(0, 50000);
+      };
+      return;
+    }
+    reader.readAsText(file);
+  } else {
+    reader.readAsText(file);
+  }
+}
+
+function setReaderMode(mode) {
+  document.querySelectorAll('#panel-reader .mode-pill').forEach(p => p.classList.remove('active'));
+  document.getElementById(`reader${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('active');
+}
+
+// ========== SCENE TABS ==========
+function switchSceneTab(tab) {
+  document.getElementById('sceneTab-images').style.display = tab === 'images' ? 'grid' : 'none';
+  document.getElementById('sceneTab-gradients').style.display = tab === 'gradients' ? 'grid' : 'none';
+  document.getElementById('sceneTabImages').classList.toggle('active', tab === 'images');
+  document.getElementById('sceneTabGradients').classList.toggle('active', tab === 'gradients');
+  if (tab === 'images') loadImageScenes();
+}
+
+const IMAGE_SCENES = [
+  { url: '/fixate/static/img/flocus-bg-1-clean.png', label: 'Konbini' },
+  { url: '/fixate/static/img/flocus-cafe.jpg', label: 'Lo-Fi Café' },
+  { url: '/fixate/static/img/flocus-wall-1.jpg', label: 'City Sunset' },
+  { url: '/fixate/static/img/flocus-img-1.jpg', label: 'Neon Coffee' },
+  { url: '/fixate/static/img/flocus-img-2.jpg', label: 'Rainy Street' },
+  { url: '/fixate/static/img/flocus-img-3.jpg', label: 'Fireworks Room' },
+  { url: '/fixate/static/img/flocus-img-4.png', label: 'Lofi Corner' },
+  { url: '/fixate/static/img/flocus-img-5.jpg', label: 'Night Desk' },
+  { url: '/fixate/static/img/flocus-img-6.png', label: 'Cozy Room' },
+  { url: '/fixate/static/img/flocus-img-7.jpg', label: 'Sunset Apt' },
+  { url: '/fixate/static/img/flocus-img-8.png', label: 'Night Alley' },
+  { url: '/fixate/static/img/flocus-img-9.png', label: 'Twilight City' },
+  { url: '/fixate/static/img/flocus-img-10.png', label: 'Golden Hour' },
+];
+
+function loadImageScenes() {
+  const grid = document.getElementById('sceneTab-images');
+  const currentBg = document.getElementById('bg').style.backgroundImage;
+  
+  // Show loading state
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;opacity:0.5;padding:20px;font-size:13px">Loading scenes...</div>';
+  
+  // Pre-test each image, only show ones that load
+  let loaded = 0;
+  IMAGE_SCENES.forEach((s, i) => {
+    const testImg = new Image();
+    testImg.onload = function() {
+      loaded++;
+      const div = document.createElement('div');
+      div.className = 'scene-thumb';
+      if (currentBg.includes(s.url.split('/').pop())) div.classList.add('active');
+      div.style.backgroundImage = `url('${s.url}')`;
+      div.onclick = function() { setScene(s.url, div); };
+      div.innerHTML = `<div class="label">${s.label}</div>`;
+      div.id = 'img-scene-' + i;
+      
+      // Replace loading text with first image, then append
+      if (loaded === 1) grid.innerHTML = '';
+      grid.appendChild(div);
+    };
+    testImg.onerror = function() {
+      // Silently skip broken images
+    };
+    testImg.src = s.url;
+  });
+}
+
+// ========== KEYBOARD ==========
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); toggleTimer(); }
+  if (e.key === 'Escape') { closePanel(); showClockMode(); }
+});
+
+// ========== INIT ==========
+renderTasks();
+updateRing();
+loadImageScenes();
+console.log('🟣 Fixate — Flocus edition loaded');
+</script>
+</body>
+</html>

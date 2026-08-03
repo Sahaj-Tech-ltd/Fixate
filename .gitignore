@@ -63,9 +63,9 @@ db.sqlite3
 # PyInstaller build artifacts
 desktop/build/
 desktop/dist/
+desktop/node_modules/
+desktop/src-tauri/target/
 *.spec
 
 .idea/
 .vscode/
-
-plan.md

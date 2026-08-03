@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}Fixate Pro — Upgrade{% endblock %}
+
+{% block extra_css %}
+<style>
+.pro-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.pro-hero {
+    margin-bottom: 60px;
+}
+
+.pro-hero h1 {
+    font-size: 42px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.pro-hero p {
+    font-size: 18px;
+    color: var(--text-secondary);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.pro-badge {
+    display: inline-block;
+    padding: 6px 20px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 20px;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+
+.pro-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 60px;
+}
+
+.pro-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 30px;
+    text-align: left;
+    position: relative;
+}
+
+.pro-card.featured {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+}
+
+.pro-card.featured::before {
+    content: 'Popular';
+    position: absolute;
+    top: -12px;
+    right: 24px;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pro-card h3 {
+    font-size: 22px;
+    margin-bottom: 12px;
+}
+
+.pro-price {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.pro-price span {
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.pro-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0;
+}
+
+.pro-card li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.pro-card li::before {
+    content: '✓ ';
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.pro-card li.na::before {
+    content: '— ';
+    color: var(--text-secondary);
+}
+
+.pro-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: white;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.pro-btn:hover {
+    background: var(--accent-hover);
+}
+
+.pro-btn.outline {
+    background: transparent;
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.pro-btn.outline:hover {
+    border-color: var(--accent);
+}
+
+.pro-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.coming-soon-overlay {
+    position: relative;
+}
+
+.coming-soon-overlay::after {
+    content: 'Coming Soon';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    border-radius: 12px;
+    backdrop-filter: blur(2px);
+    letter-spacing: 2px;
+}
+
+.pro-features-section {
+    text-align: left;
+    max-width: 700px;
+    margin: 0 auto 60px;
+}
+
+.pro-features-section h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.pro-feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.pro-feature-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+}
+
+.pro-feature-item .icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.pro-feature-item .text h4 {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.pro-feature-item .text p {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.pro-footer {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.pro-footer a {
+    color: var(--accent);
+}
+
+@media (max-width: 768px) {
+    .pro-grid {
+        grid-template-columns: 1fr;
+    }
+    .pro-feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pro-container">
+    <div class="pro-hero">
+        <div class="pro-badge">🚀 Fixate Pro</div>
+        <h1>Read More. Focus Deeper.</h1>
+        <p>Unlock unlimited OCR, advanced noise profiles, flashcard review, and more. Research-backed ADHD reading, supercharged.</p>
+    </div>
+
+    <div class="pro-grid coming-soon-overlay">
+        <div class="pro-card">
+            <h3>Free</h3>
+            <div class="pro-price">$0<span>/month</span></div>
+            <ul>
+                <li>10 Textract OCR uploads</li>
+                <li>RSVP + Bionic Reading</li>
+                <li>Background noise engine</li>
+                <li>Hyperfocus sprints</li>
+                <li>Co-working rooms</li>
+                <li>Kanban + Notes</li>
+                <li>Basic highlights</li>
+                <li class="na">Unlimited OCR</li>
+                <li class="na">Advanced noise profiles</li>
+                <li class="na">Flashcard review</li>
+                <li class="na">Strea k analytics</li>
+            </ul>
+            <button class="pro-btn outline" disabled>Current Plan</button>
+        </div>
+
+        <div class="pro-card featured">
+            <h3>Pro</h3>
+            <div class="pro-price">$5<span>/month</span></div>
+            <ul>
+                <li>Unlimited Textract OCR</li>
+                <li>Everything in Free</li>
+                <li>Per-type noise EQ profiles</li>
+                <li>Flashcard decks + review</li>
+                <li>Streak analytics & heat map</li>
+                <li>Priority support</li>
+                <li>Early access to new features</li>
+                <li>Custom noise presets</li>
+                <li>Export highlights as notes</li>
+                <li>Document folders & tags</li>
+                <li>Reading stats dashboard</li>
+            </ul>
+            <button class="pro-btn" disabled>Coming Soon</button>
+        </div>
+    </div>
+
+    <div class="pro-features-section">
+        <h2>What Pro Unlocks</h2>
+        <div class="pro-feature-grid">
+            <div class="pro-feature-item">
+                <span class="icon">📄</span>
+                <div class="text">
+                    <h4>Unlimited OCR</h4>
+                    <p>Process as many PDFs as you want. No caps, no quotas. AWS Textract quality, zero per-page costs to you.</p>
+                </div>
+            </div>
+            <div class="pro-feature-item">
+                <span class="icon">🎛️</span>
+                <div class="text">
+                    <h4>Advanced Noise EQ</h4>
+                    <p>Per-subtype noise calibration. Fine-tune LFO speed, modulation depth, and brightness for YOUR brain.</p>
+                </div>
+            </div>
+            <div class="pro-feature-item">
+                <span class="icon">🃏</span>
+                <div class="text">
+                    <h4>Flashcard Review</h4>
+                    <p>Convert highlights into flashcards. Spaced repetition scheduling. Review on any device.</p>
+                </div>
+            </div>
+            <div class="pro-feature-item">
+                <span class="icon">📊</span>
+                <div class="text">
+                    <h4>Reading Analytics</h4>
+                    <p>Streak tracking, words-per-day heat map, comprehension trends. See your reading habits improve over time.</p>
+                </div>
+            </div>
+            <div class="pro-feature-item">
+                <span class="icon">📁</span>
+                <div class="text">
+                    <h4>Smart Organization</h4>
+                    <p>Folders, tags, full-text search. Never lose a document or a highlight again.</p>
+                </div>
+            </div>
+            <div class="pro-feature-item">
+                <span class="icon">🔬</span>
+                <div class="text">
+                    <h4>Early Access</h4>
+                    <p>New reading modes, research-backed features, and experiments before anyone else.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pro-footer">
+        <p>Questions? <a href="mailto:hello@fixate.app">hello@fixate.app</a></p>
+        <p style="margin-top: 8px;">All core reading features remain free forever. Pro funds the research.</p>
+    </div>
+</div>
+{% endblock %}

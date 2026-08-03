@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Notes — Fixate{% endblock %}
+
+{% block body_class %}notes-page{% endblock %}
+
+{% block content %}
+<div class="notes-app" x-data="notesApp()" x-init="init()">
+    <header class="notes-header">
+        <a href="{% url 'dashboard' %}" class="kanban-back">← Dashboard</a>
+        <h1>Sticky Notes</h1>
+        <span class="kanban-subtitle">Quick capture. Color-coded. Auto-saved.</span>
+    </header>
+
+    <!-- Quick capture bar -->
+    <div class="notes-quick-capture">
+        <input type="text"
+               placeholder="Jot something down..."
+               @keyup.enter="quickCapture($event)"
+               x-ref="quickInput"
+               maxlength="200">
+        <button class="btn-sm" @click="quickCaptureFromButton()">Save</button>
+    </div>
+
+    <!-- Color filter chips -->
+    <div class="notes-filters">
+        <button class="filter-chip"
+                :class="{ active: activeFilter === 'all' }"
+                @click="activeFilter = 'all'">All</button>
+        <template x-for="c in colors" :key="c.id">
+            <button class="filter-chip"
+                    :class="{ active: activeFilter === c.id }"
+                    :style="{ '--chip-color': c.hex, '--chip-border': c.border }"
+                    @click="activeFilter = activeFilter === c.id ? 'all' : c.id"
+                    x-text="c.label">
+            </button>
+        </template>
+    </div>
+
+    <!-- Notes grid -->
+    <div class="notes-grid">
+        <template x-for="note in filteredNotes()" :key="note.id">
+            <div class="note-card"
+                 :class="{ expanded: expandedId === note.id, archived: note.is_archived }"
+                 :style="{ background: note.color_hex, borderColor: note.color_border }"
+                 @click="expandNote(note)">
+                <!-- Color bar -->
+                <div class="note-color-bar"
+                     :style="{ background: note.color_border }"></div>
+
+                <div class="note-body">
+                    <!-- Title -->
+                    <div class="note-title"
+                         :contenteditable="editingId === note.id"
+                         @dblclick.stop="startEdit(note)"
+                         @blur="saveEdit(note, $event)"
+                         @keydown.enter.prevent="$event.target.blur()"
+                         @keydown.escape.prevent="cancelEdit($event)"
+                         x-text="note.title || 'Untitled'"
+                         x-show="expandedId === note.id || note.title">
+                    </div>
+
+                    <!-- Body preview (collapsed) -->
+                    <div class="note-preview" x-show="expandedId !== note.id" x-text="note.body || 'Empty note'"></div>
+
+                    <!-- Full body (expanded) -->
+                    <textarea class="note-editor"
+                              x-show="expandedId === note.id"
+                              x-model="note.body"
+                              @input.debounce.500ms="autoSave(note)"
+                              @click.stop
+                              placeholder="Start writing..."
+                              rows="4">
+                    </textarea>
+
+                    <!-- Meta row -->
+                    <div class="note-meta" x-show="expandedId === note.id">
+                        <!-- Color picker dots -->
+                        <div class="note-color-picker">
+                            <template x-for="c in colors" :key="c.id">
+                                <button class="color-dot"
+                                        :class="{ selected: note.color === c.id }"
+                                        :style="{ background: c.hex, borderColor: c.border }"
+                                        @click.stop="changeColor(note, c.id)"
+                                        :title="c.label">
+                                </button>
+                            </template>
+                        </div>
+
+                        <div class="note-actions">
+                            <span class="note-timestamp" x-text="formatDate(note.updated_at)"></span>
+                            <button class="note-action-btn"
+                                    @click.stop="archiveNote(note)"
+                                    x-text="note.is_archived ? 'Restore' : 'Archive'">
+                            </button>
+                            <button class="note-action-btn danger"
+                                    @click.stop="deleteNote(note)">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Empty state -->
+        <div class="notes-empty" x-show="filteredNotes().length === 0">
+            <p x-show="activeFilter === 'all' && !showArchived">No notes yet. Jot something above!</p>
+            <p x-show="activeFilter !== 'all'">No <span x-text="activeFilter"></span> notes</p>
+            <p x-show="showArchived && filteredNotes().length === 0">Archive is empty</p>
+        </div>
+    </div>
+
+    <!-- Show archived toggle -->
+    <div class="notes-footer">
+        <button class="filter-chip" @click="showArchived = !showArchived; loadNotes()">
+            <span x-text="showArchived ? '📋 Show Active' : '🗄 Show Archived'"></span>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function notesApp() {
+    return {
+        notes: [],
+        expandedId: null,
+        editingId: null,
+        priorTitle: '',
+        activeFilter: 'all',
+        showArchived: false,
+        saveTimers: {},
+
+        colors: [
+            { id: 'default', label: 'Default', hex: '#1e1e24', border: '#2a2a2a' },
+            { id: 'yellow', label: 'Yellow', hex: '#3d3520', border: '#5a4a20' },
+            { id: 'blue', label: 'Blue', hex: '#1e2d3d', border: '#2a3d5a' },
+            { id: 'green', label: 'Green', hex: '#1e3d2d', border: '#2a4a3d' },
+            { id: 'pink', label: 'Pink', hex: '#3d1e2d', border: '#5a2a3d' },
+            { id: 'purple', label: 'Purple', hex: '#2d1e3d', border: '#3d2a5a' },
+        ],
+
+        init() {
+            this.loadNotes();
+        },
+
+        async loadNotes() {
+            const url = this.showArchived
+                ? '/api/reader/notes/?archived=1'
+                : '/api/reader/notes/';
+            const res = await fetch(url);
+            this.notes = await res.json();
+        },
+
+        filteredNotes() {
+            if (this.activeFilter === 'all') return this.notes;
+            return this.notes.filter(n => n.color === this.activeFilter);
+        },
+
+        // ── Quick capture ──
+
+        async quickCapture(event) {
+            const val = event.target.value.trim();
+            if (!val) return;
+            event.target.value = '';
+
+            const res = await fetch('/api/reader/notes/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ title: val }),
+            });
+            const note = await res.json();
+            this.notes.unshift(note);
+        },
+
+        quickCaptureFromButton() {
+            const input = this.$refs.quickInput;
+            const val = input.value.trim();
+            if (!val) return;
+            input.value = '';
+            this.quickCapture({ target: { value: val } });
+        },
+
+        // ── Expand / collapse ──
+
+        expandNote(note) {
+            this.expandedId = this.expandedId === note.id ? null : note.id;
+        },
+
+        // ── Auto-save body ──
+
+        async autoSave(note) {
+            clearTimeout(this.saveTimers[note.id]);
+            this.saveTimers[note.id] = setTimeout(async () => {
+                await fetch(`/api/reader/notes/${note.id}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCsrfToken(),
+                    },
+                    body: JSON.stringify({ body: note.body }),
+                });
+                note.updated_at = new Date().toISOString();
+            }, 500);
+        },
+
+        // ── Edit title ──
+
+        startEdit(note) {
+            this.editingId = note.id;
+            this.priorTitle = note.title;
+            this.$nextTick(() => {
+                const el = this.$el.querySelector(`.note-card [contenteditable="true"]`);
+                if (el) {
+                    el.focus();
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                }
+            });
+        },
+
+        async saveEdit(note, event) {
+            if (this.editingId !== note.id) return;
+            const newTitle = event.target.textContent.trim();
+            this.editingId = null;
+
+            if (newTitle === this.priorTitle) {
+                event.target.textContent = this.priorTitle || '';
+                return;
+            }
+
+            note.title = newTitle;
+            await fetch(`/api/reader/notes/${note.id}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ title: newTitle }),
+            });
+        },
+
+        cancelEdit(event) {
+            event.target.textContent = this.priorTitle || '';
+            event.target.blur();
+            this.editingId = null;
+        },
+
+        // ── Color ──
+
+        async changeColor(note, color) {
+            note.color = color;
+            const res = await fetch(`/api/reader/notes/${note.id}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ color }),
+            });
+            const updated = await res.json();
+            note.color_hex = updated.color_hex;
+            note.color_border = updated.color_border;
+        },
+
+        // ── Archive / Delete ──
+
+        async archiveNote(note) {
+            note.is_archived = !note.is_archived;
+            await fetch(`/api/reader/notes/${note.id}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ is_archived: note.is_archived }),
+            });
+            this.expandedId = null;
+            // Reload if we're not showing archived and we just archived
+            if (!this.showArchived && note.is_archived) {
+                this.notes = this.notes.filter(n => n.id !== note.id);
+            }
+        },
+
+        async deleteNote(note) {
+            if (!confirm('Delete this note permanently?')) return;
+            await fetch(`/api/reader/notes/${note.id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': this.getCsrfToken() },
+            });
+            this.notes = this.notes.filter(n => n.id !== note.id);
+            this.expandedId = null;
+        },
+
+        // ── Helpers ──
+
+        formatDate(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const now = new Date();
+            const diff = now - d;
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'Just now';
+            if (mins < 60) return `${mins}m ago`;
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return `${hours}h ago`;
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        },
+
+        getCsrfToken() {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            return el ? el.value : '';
+        },
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,3 @@
+[lint]
+exclude = ["migrations", ".venv", "staticfiles", "desktop"]
+ignore = ["E501"]

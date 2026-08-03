@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ document.title }} - Fixate{% endblock %}
 
@@ -103,6 +104,31 @@
     font-weight: 500;
 }
 
+.reader-display.sentence-mode {
+    font-size: 28px;
+    line-height: 1.6;
+    text-align: left;
+    padding: 40px 60px;
+    align-items: flex-start;
+}
+
+.sentence-display {
+    max-width: 800px;
+    color: var(--text-primary);
+}
+
+.rsvp-ghost-word {
+    font-size: 24px;
+    font-weight: 300;
+    opacity: 0.18;
+    color: var(--text-secondary);
+    margin-left: 12px;
+    align-self: center;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
 .reader-display.bionic-mode {
     font-size: 24px;
     line-height: 1.8;
@@ -126,6 +152,490 @@
 
 .reader-display.bionic-mode .word strong {
     font-weight: 700;
+}
+
+.reader-display.pdf-mode {
+    display: block;
+    padding: 20px;
+    background: #1a1a2e;
+}
+
+/* Focus line: gradient overlay dims top and bottom, keeps center bright */
+.reader-display.focus-line-enabled {
+    position: relative;
+}
+
+.reader-display.focus-line-enabled::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.55) 0%,
+        rgba(0,0,0,0.25) 30%,
+        transparent 45%,
+        transparent 55%,
+        rgba(0,0,0,0.25) 70%,
+        rgba(0,0,0,0.55) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 8px;
+}
+
+.btn-focus-line {
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    margin-left: 8px;
+    transition: all 0.15s;
+}
+
+.btn-focus-line:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.btn-focus-line.active {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent);
+}
+
+/* ── Working Memory Sidebar ── */
+.memory-sidebar {
+    position: fixed;
+    right: 0;
+    top: 60px;
+    width: 280px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    padding: 16px;
+    z-index: 10;
+    font-size: 13px;
+    line-height: 1.5;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.memory-sidebar.collapsed {
+    transform: translateX(calc(100% - 32px));
+    opacity: 0.92;
+}
+
+.memory-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.memory-sidebar-header h3 {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.memory-sidebar-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.memory-sidebar-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.memory-paragraph {
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border-left: 2px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 12px;
+    line-height: 1.4;
+    max-height: 60px;
+    overflow: hidden;
+    position: relative;
+}
+
+.memory-paragraph:hover {
+    border-left-color: var(--accent);
+    color: var(--text-primary);
+    max-height: 200px;
+}
+
+.memory-paragraph::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(transparent, var(--bg-primary));
+    pointer-events: none;
+}
+
+.memory-paragraph:hover::after {
+    display: none;
+}
+
+.memory-paragraph .memory-label {
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+}
+
+.memory-empty {
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-align: center;
+    padding: 20px 0;
+    opacity: 0.6;
+}
+
+.memory-sidebar-collapse-btn {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-right: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 22px;
+    height: 48px;
+    border-radius: 6px 0 0 6px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+    transition: all 0.15s;
+}
+
+.memory-sidebar-collapse-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ── Reading Ruler ── */
+.reading-ruler {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 2;
+    box-shadow: 0 0 12px 4px rgba(99, 102, 241, 0.15);
+    transition: top 0.3s ease-out;
+}
+
+.reader-display {
+    position: relative;  /* for absolute ruler positioning */
+}
+
+.reading-ruler-top {
+    top: 38%;
+}
+
+.reading-ruler-center {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.btn-ruler {
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    margin-left: 8px;
+    transition: all 0.15s;
+}
+
+.btn-ruler:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.btn-ruler.active {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent);
+}
+
+/* ── Paragraph Focus Mode ── */
+/* Wider transparent band than focus line — keeps one paragraph visible, dims rest */
+.reader-display.para-focus-enabled {
+    position: relative;
+}
+
+.reader-display.para-focus-enabled::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.70) 0%,
+        rgba(0,0,0,0.50) 25%,
+        transparent 38%,
+        transparent 62%,
+        rgba(0,0,0,0.50) 75%,
+        rgba(0,0,0,0.70) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 8px;
+}
+
+.btn-para-focus {
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    margin-left: 8px;
+    transition: all 0.15s;
+}
+
+.btn-para-focus:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.btn-para-focus.active {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent);
+}
+
+/* ── Breathing Break Overlay ── */
+.breathing-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+}
+
+.breathing-modal {
+    text-align: center;
+    max-width: 400px;
+    padding: 40px;
+}
+
+.breathing-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.3), rgba(99, 102, 241, 0.05));
+    border: 2px solid rgba(99, 102, 241, 0.4);
+    margin: 0 auto 24px;
+    transition: transform 4s ease-in-out, box-shadow 4s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.breathing-circle.inhale {
+    transform: scale(1.6);
+    box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+}
+
+.breathing-circle.exhale {
+    transform: scale(1.0);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.breathing-circle-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: opacity 0.5s;
+}
+
+.breathing-label {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    min-height: 28px;
+    transition: opacity 0.4s;
+}
+
+.breathing-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.breathing-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.breathing-actions button {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: all 0.15s;
+}
+
+.breathing-actions button:hover {
+    border-color: var(--accent);
+}
+
+.breathing-actions button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.breathing-actions button.primary:hover {
+    background: var(--accent-hover);
+}
+
+/* ── Highlighting ── */
+.bionic-highlight {
+    background: rgba(251, 191, 36, 0.25);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.bionic-highlight:hover {
+    background: rgba(251, 191, 36, 0.45);
+}
+
+.highlight-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+    z-index: 50;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.highlight-toast button {
+    background: #fbbf24;
+    border: none;
+    color: #1a1a1a;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+}
+
+.highlight-toast .dismiss {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.memory-highlights-section {
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+.memory-highlights-section h4 {
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.memory-highlight-item {
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    border-left: 2px solid #fbbf24;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    max-height: 48px;
+    overflow: hidden;
+}
+
+.memory-highlight-item:hover {
+    border-left-color: #f59e0b;
+    color: var(--text-primary);
+    max-height: none;
+}
+
+.btn-highlight {
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.btn-highlight:hover {
+    border-color: #fbbf24;
+    color: #fbbf24;
 }
 
 .playback-controls {
@@ -180,11 +690,137 @@
 
 {% block content %}
 <div class="reader-container" x-data="readerApp()" x-init="init()">
+    <!-- ── Pre-Reading Ritual ── -->
+    <div class="ritual-overlay" x-show="showRitual" x-transition.opacity>
+        <div class="ritual-modal">
+            <div class="ritual-header">
+                <span class="ritual-icon">🧠</span>
+                <h2>Ready to Focus?</h2>
+                <p class="ritual-doc">{{ document.title }}</p>
+            </div>
+            
+            <div class="ritual-body">
+                <div class="ritual-field">
+                    <label>What's your goal?</label>
+                    <input type="text" 
+                           x-model="ritualGoal" 
+                           placeholder="e.g., Read 3 sections, Understand chapter 4..."
+                           maxlength="120">
+                </div>
+                
+                <div class="ritual-field">
+                    <label>Sprint Duration</label>
+                    <div class="ritual-options">
+                        <button @click="ritualSprint = 10" 
+                                :class="{ active: ritualSprint === 10 }">10 min</button>
+                        <button @click="ritualSprint = 25" 
+                                :class="{ active: ritualSprint === 25 }">25 min</button>
+                        <button @click="ritualSprint = 45" 
+                                :class="{ active: ritualSprint === 45 }">45 min</button>
+                        <button @click="ritualSprint = 0" 
+                                :class="{ active: ritualSprint === 0 }">No sprint</button>
+                    </div>
+                </div>
+                
+                <div class="ritual-field">
+                    <label>Background Noise</label>
+                    <p class="ritual-field-hint">Research: Pink noise boosts ADHD focus. White noise helps most. Brown = deep rumble (less studied).</p>
+                    <div class="ritual-options">
+                        <button @click="ritualNoise = 'pink-noise'; calibrateNoise('pink')"
+                                :class="{ active: ritualNoise === 'pink-noise', sampling: calibratingNoise === 'pink' }">
+                            🌧️ Pink
+                            <span class="calibrate-badge" x-show="calibratingNoise !== 'pink'">▶</span>
+                            <span class="calibrate-badge active" x-show="calibratingNoise === 'pink'">playing...</span>
+                        </button>
+                        <button @click="ritualNoise = 'white-noise'; calibrateNoise('white')"
+                                :class="{ active: ritualNoise === 'white-noise', sampling: calibratingNoise === 'white' }">
+                            📺 White
+                            <span class="calibrate-badge" x-show="calibratingNoise !== 'white'">▶</span>
+                            <span class="calibrate-badge active" x-show="calibratingNoise === 'white'">playing...</span>
+                        </button>
+                        <button @click="ritualNoise = 'brown-noise'; calibrateNoise('brown')"
+                                :class="{ active: ritualNoise === 'brown-noise', sampling: calibratingNoise === 'brown' }">
+                            🌊 Brown
+                            <span class="calibrate-badge" x-show="calibratingNoise !== 'brown'">▶</span>
+                            <span class="calibrate-badge active" x-show="calibratingNoise === 'brown'">playing...</span>
+                        </button>
+                        <button @click="ritualNoise = null; stopCalibration()"
+                                :class="{ active: ritualNoise === null }">🔇 None</button>
+                    </div>
+                </div>
+                
+                <div class="ritual-tip">
+                    <span>💡</span>
+                    <span>Take a deep breath. Exhale slowly. You've got this.</span>
+                </div>
+            </div>
+            
+            <div class="ritual-footer">
+                <button class="ritual-begin" @click="beginReading()">
+                    Begin Reading →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Figure Panel (two-column: left panel when figures exist) ── -->
+    <div class="reader-layout" :class="{ 'has-figures': figures.length > 0 && showFigurePanel }">
+        <aside class="figure-panel" x-show="figures.length > 0 && showFigurePanel"
+               :class="{ 'figure-mobile': isMobile }">
+            <div class="figure-panel-header">
+                <h3>Figures</h3>
+                <button class="btn-close" @click="showFigurePanel = false">&times;</button>
+            </div>
+            
+            <!-- Current figure display -->
+            <div class="figure-current" @click="zoomFigure(currentFigure)">
+                <img x-show="currentFigure" :src="currentFigure?.image_url" :alt="currentFigure?.caption || 'Figure'"
+                     class="figure-image">
+                <div x-show="!currentFigure" class="figure-empty">
+                    <span>📊</span>
+                    <p>No figure selected</p>
+                </div>
+            </div>
+            
+            <!-- Figure caption -->
+            <div class="figure-caption" x-show="currentFigure?.caption">
+                <span x-text="currentFigure?.reference_text || 'Figure'"></span>
+                <span x-text="currentFigure?.caption" class="caption-text"></span>
+                <span class="caption-page">p. <span x-text="currentFigure?.page_number"></span></span>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="figure-nav" x-show="figures.length > 1">
+                <button @click="prevFigure()" :disabled="!hasPrevFigure">◀ Prev</button>
+                <span x-text="(currentFigureIndex + 1) + ' / ' + figures.length"></span>
+                <button @click="nextFigure()" :disabled="!hasNextFigure">Next ▶</button>
+            </div>
+            
+            <!-- Thumbnail strip -->
+            <div class="figure-thumbnails" x-show="figures.length > 1">
+                <template x-for="(fig, idx) in figures" :key="fig.id">
+                    <button class="figure-thumb"
+                            :class="{ active: idx === currentFigureIndex }"
+                            @click="selectFigure(idx)">
+                        <img :src="fig.thumbnail_url" :alt="'Figure ' + (fig.figure_number || idx + 1)">
+                    </button>
+                </template>
+            </div>
+        </aside>
+        
+        <!-- Mobile toggle button -->
+        <button class="figure-mobile-toggle" x-show="figures.length > 0 && !showFigurePanel && isMobile"
+                @click="showFigurePanel = true">
+            📊 <span x-text="figures.length + ' figures'"></span>
+        </button>
+        
+        <main class="reader-main">
     <header class="reader-header">
         <h1>{{ document.title }}</h1>
         <nav>
             <span x-text="Math.round(progress * 100) + '%'"></span>
             <a href="{% url 'dashboard' %}">Back to Library</a>
+            <button class="btn-sm ghost" @click="downloadReport()" style="margin-left:8px" title="Download reading report as PDF">📄 Report</button>
         </nav>
     </header>
     
@@ -192,6 +828,8 @@
         <div class="mode-toggle">
             <button @click="setMode('rsvp')" :class="{ active: mode === 'rsvp' }">RSVP</button>
             <button @click="setMode('bionic')" :class="{ active: mode === 'bionic' }">Bionic</button>
+            <button @click="setMode('sentence')" :class="{ active: mode === 'sentence' }">Sentence</button>
+            <button @click="setMode('pdf')" :class="{ active: mode === 'pdf' }">📄 PDF</button>
         </div>
         
         <div class="control-group">
@@ -215,18 +853,312 @@
         <div class="control-group">
             <label>Font</label>
             <select x-model="font" @change="updateFont()">
-                <option value="inter">Inter</option>
-                <option value="opendyslexic">OpenDyslexic</option>
-                <option value="system">System</option>
+                {% for font_id, font_data in FONTS.items %}
+                <option value="{{ font_id }}">{{ font_data.name }}</option>
+                {% endfor %}
             </select>
         </div>
     </div>
     
+    <!-- ── Audio Player ── -->
+    <div class="audio-player" x-data="audioPlayer()" x-init="init()" @destroy.window="destroy()">
+        <button class="audio-toggle" @click="togglePanel()"
+                :class="{ active: isPlaying }"
+                :title="isPlaying ? 'Pause noise' : 'Open noise panel'">
+            <span x-text="isPlaying ? '🔊' : '🎧'"></span>
+            <span class="audio-toggle-label" x-show="isPlaying" x-text="activeTrack?.icon + ' ' + activeTrack?.name"></span>
+            <span class="audio-toggle-label" x-show="!isPlaying">Focus Noise</span>
+        </button>
+        
+        <div class="audio-panel" x-show="showPanel" @click.outside="showPanel = false">
+            <div class="audio-panel-header">
+                <h3>Focus Noise</h3>
+                <button @click="showPanel = false" class="btn-close">&times;</button>
+            </div>
+            
+            <!-- Currently playing -->
+            <div class="audio-now-playing" x-show="activeTrack">
+                <span x-text="activeTrack?.icon"></span>
+                <span x-text="activeTrack?.name"></span>
+                <span x-show="!canPlay(activeTrack)" class="badge-coming">soon</span>
+            </div>
+            
+            <!-- Volume -->
+            <div class="audio-volume">
+                <label>Volume</label>
+                <input type="range" min="0" max="1" step="0.05"
+                       :value="volume" @input="onVolumeChange($event)">
+                <span x-text="Math.round(volume * 100) + '%'"></span>
+                <button class="btn-sm" @click="calibrate()" x-show="activeTrack && canPlay(activeTrack)"
+                        x-text="calibrating ? 'Sampling...' : 'Test'"></button>
+            </div>
+            
+            <!-- Customize Noise (only for noise tracks) -->
+            <div x-show="activeTrack?.category === 'noise'">
+                <button class="btn-sm" @click="showCustomize = !showCustomize"
+                        x-text="showCustomize ? '− Hide Customize' : '⚙ Customize'"
+                        style="width:100%; margin-bottom:8px;"></button>
+                
+                <div class="audio-customize" x-show="showCustomize">
+                    <div class="custom-slider">
+                        <label>Modulation Speed <span x-text="customLfoSpeed.toFixed(2) + ' Hz'"></span></label>
+                        <input type="range" min="0.05" max="1.0" step="0.01"
+                               :value="customLfoSpeed" @input="onLfoSpeedChange($event)">
+                        <span class="custom-hint">Slow = calming, fast = more variation</span>
+                    </div>
+                    
+                    <div class="custom-slider">
+                        <label>Modulation Depth <span x-text="(customLfoDepth * 100).toFixed(0) + '%'"></span></label>
+                        <input type="range" min="0.01" max="0.10" step="0.005"
+                               :value="customLfoDepth" @input="onLfoDepthChange($event)">
+                        <span class="custom-hint">Subtle = barely noticeable, deep = more alive</span>
+                    </div>
+                    
+                    <div class="custom-slider">
+                        <label>Brightness <span x-text="customBrightness > 0 ? 'Brighter' : customBrightness < 0 ? 'Darker' : 'Neutral'"></span></label>
+                        <input type="range" min="-1" max="1" step="0.05"
+                               :value="customBrightness" @input="onBrightnessChange($event)">
+                        <span class="custom-hint">Dark = bassy/rumble, bright = airy/hiss</span>
+                    </div>
+                    
+                    <div class="custom-actions">
+                        <button class="btn-sm" @click="resetCustom()">Reset Defaults</button>
+                        <button class="btn-sm" @click="savePreset()">💾 Save Preset</button>
+                    </div>
+                    
+                    <!-- Saved Presets -->
+                    <div class="custom-presets" x-show="presets.length > 0">
+                        <h5>Your Presets</h5>
+                        <template x-for="preset in presets" :key="preset.name">
+                            <div class="preset-item">
+                                <button class="preset-name" @click="loadPreset(preset)"
+                                        x-text="preset.name + ' (' + preset.noiseType + ')'"></button>
+                                <button class="preset-delete" @click="deletePreset(preset.name)">×</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Noise tracks -->
+            <div class="audio-track-group">
+                <h4>Color Noise</h4>
+                <div class="audio-track-grid">
+                    <template x-for="track in tracks.noise" :key="track.slug">
+                        <button class="audio-track-btn"
+                                :class="{ active: activeTrack?.slug === track.slug }"
+                                @click="play(track)"
+                                :disabled="!canPlay(track)">
+                            <span x-text="track.icon"></span>
+                            <span x-text="track.name"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Ambient tracks -->
+            <div class="audio-track-group">
+                <h4>Ambient Soundscapes</h4>
+                <div class="audio-track-grid">
+                    <template x-for="track in tracks.ambient" :key="track.slug">
+                        <button class="audio-track-btn"
+                                :class="{ active: activeTrack?.slug === track.slug }"
+                                @click="play(track)"
+                                :disabled="!canPlay(track)">
+                            <span x-text="track.icon"></span>
+                            <span x-text="track.name"></span>
+                            <span x-show="!canPlay(track)" class="badge-coming">soon</span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Stop button -->
+            <div class="audio-actions" x-show="isPlaying">
+                <button class="btn-stop" @click="stop()">Stop Noise</button>
+            </div>
+
+            <!-- ── Bilateral Stimulation ── -->
+            <div class="audio-bilateral">
+                <label class="bilateral-toggle">
+                    <input type="checkbox" x-model="bilateralOn" @change="onBilateralToggle()">
+                    <span>🧠 Bilateral Focus</span>
+                </label>
+                <span class="tts-hint-sm">Alternating L/R tones. EMDR-researched.</span>
+                <div x-show="bilateralOn" class="bilateral-settings">
+                    <select x-model="bilateralPreset" @change="onBilateralPresetChange()" class="bilateral-preset">
+                        <option value="theta">Theta — Deep Focus (6 Hz)</option>
+                        <option value="alpha">Alpha — Alert Calm (10 Hz)</option>
+                        <option value="beta">Beta — Intense Focus (18 Hz)</option>
+                        <option value="low">Slow — Breathing Pace (2 Hz)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TTS Read Aloud ── -->
+    <div class="tts-player" x-data="ttsPlayer()" x-init="init()" x-show="documentText">
+        <button class="tts-toggle" @click="showPanel = !showPanel"
+                :class="{ active: isReading }"
+                :title="isReading ? 'Reading aloud...' : 'Read aloud'">
+            <span x-text="isReading ? '🔊' : '📢'"></span>
+            <span class="tts-toggle-label" x-show="isReading">Reading</span>
+            <span class="tts-toggle-label" x-show="!isReading">Read Aloud</span>
+        </button>
+
+        <div class="tts-panel" x-show="showPanel" @click.outside="showPanel = false">
+            <div class="tts-panel-header">
+                <h3>Read Aloud</h3>
+                <button @click="showPanel = false" class="btn-close">&times;</button>
+            </div>
+            <div class="tts-setting">
+                <label>Voice</label>
+                <select x-model="selectedVoice" @change="onVoiceChange()">
+                    <option value="">System default</option>
+                    <template x-for="v in voices" :key="v.name">
+                        <option :value="v.name" x-text="v.name + ' (' + v.lang + ')'"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="tts-setting">
+                <label>Speed <span x-text="rate.toFixed(1) + 'x'"></span></label>
+                <input type="range" min="0.5" max="2.5" step="0.1" x-model="rate" @input="onRateChange()">
+            </div>
+            <div class="tts-setting">
+                <label>Volume <span x-text="Math.round(ttsVolume * 100) + '%'"></span></label>
+                <input type="range" min="0.1" max="1" step="0.05" x-model="ttsVolume" @input="onVolumeChange()">
+            </div>
+
+            <!-- ── Attention Hacks ── -->
+            <div class="tts-divider"></div>
+            <div class="tts-setting tts-hack-toggle">
+                <label>
+                    <input type="checkbox" x-model="hacksEnabled" @change="onHacksToggle()">
+                    <span>🧠 Attention Hacks</span>
+                </label>
+                <span class="tts-hint-sm">Prediction-error transitions</span>
+            </div>
+            <div x-show="hacksEnabled" class="tts-hack-settings">
+                <div class="tts-setting">
+                    <label>Mode</label>
+                    <select x-model="hackMode" @change="onHackModeChange()">
+                        <template x-for="m in hackModes" :key="m.id">
+                            <option :value="m.id" x-text="m.label"></option>
+                        </template>
+                    </select>
+                    <span class="tts-hint-sm" x-text="hackModeDesc"></span>
+                </div>
+                <div class="tts-setting">
+                    <label>Intensity <span x-text="Math.round(hackIntensity * 100) + '%'"></span></label>
+                    <input type="range" min="0" max="1" step="0.05" x-model="hackIntensity" @input="onHackIntensityChange()">
+                </div>
+                <div class="tts-segment-progress" x-show="isReading && hacksActive">
+                    <span x-text="'Segment ' + hackSegment + ' / ' + hackTotal"></span>
+                    <div class="segment-bar">
+                        <div class="segment-fill" :style="'width:' + (hackTotal ? (hackSegment/hackTotal)*100 : 0) + '%'"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tts-controls">
+                <button class="btn-sm" @click="startReading()" x-show="!isReading && !isPaused">▶ Read</button>
+                <button class="btn-sm" @click="pauseReading()" x-show="isReading && !isPaused">⏸ Pause</button>
+                <button class="btn-sm" @click="resumeReading()" x-show="isPaused">▶ Resume</button>
+                <button class="btn-sm ghost" @click="stopReading()" x-show="isReading || isPaused">⏹ Stop</button>
+            </div>
+            <p class="tts-hint" x-show="!hacksEnabled">Pauses automatically when attention cues fire.</p>
+            <p class="tts-hint" x-show="hacksEnabled && hacksActive" x-text="'Active: ' + hackModeLabel + ' — brain hacks engaged'"></p>
+            <p class="tts-hint" x-show="hacksEnabled && !hacksActive">Enable Attention Hacks for focus-preserving transitions</p>
+        </div>
+    </div>
+
+    <!-- ── Sprint Timer (Hyperfocus) ── -->
+    <div class="sprint-bar" x-show="sprintActive || sprintPaused">
+
+    <!-- ── Working Memory Sidebar ── -->
+    <button class="memory-sidebar-collapse-btn" 
+            @click="memorySidebarOpen = !memorySidebarOpen"
+            x-show="!memorySidebarOpen && workingMemory.length > 0"
+            x-text="'◀'"></button>
+    
+    <aside class="memory-sidebar" 
+           x-show="memorySidebarOpen && workingMemory.length > 0"
+           :class="{ collapsed: !memorySidebarOpen }">
+        <div class="memory-sidebar-header">
+            <h3>🧠 What You Just Read</h3>
+            <button class="memory-sidebar-toggle" @click="memorySidebarOpen = false">×</button>
+        </div>
+        <template x-for="(para, idx) in workingMemory" :key="idx">
+            <div class="memory-paragraph" 
+                 @click="jumpToMemoryParagraph(para.startIndex)"
+                 :title="'Click to jump back to this paragraph'">
+                <div class="memory-label" x-text="idx === 0 ? '▶ Current' : '↓ ' + (idx * -1) + ' paragraphs ago'"></div>
+                <span x-text="para.preview"></span>
+            </div>
+        </template>
+
+        <!-- Highlights section -->
+        <div class="memory-highlights-section" x-show="highlights.length > 0">
+            <h4>💡 Your Highlights</h4>
+            <template x-for="(h, idx) in highlights" :key="idx">
+                <div class="memory-highlight-item"
+                     @click="jumpToMemoryParagraph(h.startIndex)"
+                     :title="'Click to jump to this highlight'">
+                    <span x-text="h.text.substring(0, 120) + (h.text.length > 120 ? '...' : '')"></span>
+                    <button class="btn-sm" style="margin-left:8px;font-size:10px;"
+                            @click.stop="createFlashcardFromHighlight(h); $event.stopPropagation()">
+                        🃏 Card
+                    </button>
+                </div>
+            </template>
+        </div>
+    </aside>
+
+    <!-- ── Sprint Timer (Hyperfocus) ── -->
+    <div class="sprint-bar" x-show="sprintActive || sprintPaused">
+        <div class="sprint-info">
+            <span class="sprint-icon" x-text="sprintPaused ? '⏸️' : '⏱️'"></span>
+            <span class="sprint-time" 
+                  :class="{ urgent: sprintRemaining <= 120 }"
+                  x-text="sprintDisplay"></span>
+            <span class="sprint-label" x-show="!sprintPaused">remaining</span>
+            <span class="sprint-label" x-show="sprintPaused">paused</span>
+        </div>
+        <div class="sprint-actions">
+            <button class="btn-sprint-sm" @click="toggleSprint()"
+                    x-text="sprintPaused ? 'Resume' : 'Pause Sprint'"></button>
+            <button class="btn-sprint-sm btn-sprint-end" @click="endSprint()">End</button>
+        </div>
+    </div>
+    
+    <div class="sprint-start" x-show="!sprintActive && !sprintPaused">
+        <button class="btn-sprint-start" @click="startSprint(25)">
+            ⏱️ Start 25-Min Sprint
+        </button>
+        <span class="sprint-sub">Creates urgency. Hyperfocus trigger.</span>
+    </div>
+    
     <div class="reader-display" 
-         :class="mode + '-mode'"
+         x-ref="readerDisplay"
+         :class="mode + '-mode' + (focusLineEnabled ? ' focus-line-enabled' : '') + (paraFocusEnabled ? ' para-focus-enabled' : '')"
          :style="'font-family: ' + getFontFamily()">
+        <!-- Reading Ruler -->
+        <div class="reading-ruler" 
+             x-show="rulerEnabled"
+             :class="rulerPosition"></div>
         <span x-show="mode === 'rsvp'" x-text="currentWord"></span>
+        <span x-show="mode === 'rsvp' && nextWord" class="rsvp-ghost-word" x-text="' ' + nextWord"></span>
         <div x-show="mode === 'bionic'" x-ref="bionicContainer"></div>
+        <div x-show="mode === 'sentence'" class="sentence-display" x-text="currentSentence || 'Click ▶ to begin'"></div>
+        <div x-show="mode === 'pdf'" x-ref="pdfContainer" style="width:100%; min-height:600px;">
+            <canvas x-ref="pdfCanvas" style="max-width:100%; margin:0 auto; display:block;"></canvas>
+            <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px;">
+                <button @click="pdfPage--; renderPDFPage()" :disabled="pdfPage <= 1">◀ Prev</button>
+                <span x-text="'Page ' + pdfPage + ' / ' + pdfTotalPages"></span>
+                <button @click="pdfPage++; renderPDFPage()" :disabled="pdfPage >= pdfTotalPages">Next ▶</button>
+            </div>
+        </div>
     </div>
     
     <div class="playback-controls">
@@ -244,15 +1176,83 @@
     <div class="stats">
         <span x-text="'Word ' + currentIndex + ' of ' + totalWords"></span>
         <span x-text="wordCount + ' total words'"></span>
+        <button class="btn-focus-line" 
+                :class="{ active: focusLineEnabled }"
+                @click="focusLineEnabled = !focusLineEnabled"
+                x-show="mode === 'bionic'"
+                :title="focusLineEnabled ? 'Focus line: ON' : 'Focus line: OFF'">
+            <span x-text="focusLineEnabled ? '👁️ Focused' : '👁️ Focus Line'"></span>
+        </button>
+        <button class="btn-ruler" 
+                :class="{ active: rulerEnabled }"
+                @click="rulerEnabled = !rulerEnabled"
+                :title="rulerEnabled ? 'Reading ruler: ON' : 'Reading ruler: OFF'">
+            <span x-text="rulerEnabled ? '📏 Ruler On' : '📏 Ruler'"></span>
+        </button>
+        <button class="btn-para-focus" 
+                :class="{ active: paraFocusEnabled }"
+                @click="paraFocusEnabled = !paraFocusEnabled"
+                x-show="mode === 'bionic'"
+                :title="paraFocusEnabled ? 'Paragraph focus: ON' : 'Paragraph focus: OFF'">
+            <span x-text="paraFocusEnabled ? '📖 Para Focus' : '📖 Para Focus'"></span>
+        </button>
+        <button class="btn-ruler" 
+                :class="{ active: breathingActive }"
+                @click="breathingActive = true"
+                :title="'Take a breathing break'">
+            🧘 Breathe
+        </button>
+        <button class="btn-highlight" 
+                @click="addHighlight()"
+                :title="'Highlight current passage (H)'">
+            💡 Highlight
+        </button>
     </div>
 </div>
+        </main>
+    </div><!-- /.reader-layout -->
+    
+    <!-- ── Figure Zoom Modal ── -->
+    <div class="figure-zoom-overlay" x-show="zoomedFigure" @click="zoomFigure(null)">
+        <button class="figure-zoom-close" @click="zoomFigure(null)">&times;</button>
+        <img :src="zoomedFigure?.image_url" class="figure-zoom-image"
+             @click.stop="">
+        <div class="figure-zoom-caption" x-show="zoomedFigure?.caption">
+            <span x-text="zoomedFigure?.caption"></span>
+        </div>
+    </div>
 
+    <!-- ── Breathing Break Overlay ── -->
+    <div class="breathing-overlay" x-show="breathingActive" x-transition.opacity>
+        <div class="breathing-modal">
+            <div class="breathing-label" x-text="breathingPhaseLabel"></div>
+            <div class="breathing-circle" :class="breathingPhase">
+                <span class="breathing-circle-text" x-text="breathingCountdown"></span>
+            </div>
+            <div class="breathing-sub">
+                <span x-show="breathingPattern === 'box'">Box Breathing — 4 counts each phase</span>
+                <span x-show="breathingPattern === '478'">4-7-8 Breathing — deep relaxation</span>
+            </div>
+            <div class="breathing-actions">
+                <button @click="stopBreathing()">Skip</button>
+                <button class="primary" @click="startBreathing()" x-show="!breathingRunning">Start</button>
+                <button @click="stopBreathing()" x-show="breathingRunning">Done</button>
+            </div>
+        </div>
+    </div>
+</div><!-- /.reader-container -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="{% static 'js/rsvp.js' %}"></script>
 <script src="{% static 'js/bionic.js' %}"></script>
+<script src="{% static 'js/noise.js' %}"></script>
+<script src="{% static 'js/audio-player.js' %}"></script>
+<script src="{% static 'js/hyperfocus.js' %}"></script>
+<script src="{% static 'js/report.js' %}"></script>
 <script>
 function readerApp() {
     return {
-        text: {{ text|safe|default:'""' }},
+        text: "{{ text|escapejs|default:'' }}",
         wordCount: {{ word_count|default:0 }},
         sessionId: {{ session.id|default:'null' }},
         mode: '{{ session.mode|default:"rsvp" }}',
@@ -263,19 +1263,97 @@ function readerApp() {
         currentIndex: {{ session.last_position|default:0 }},
         
         currentWord: '',
+        nextWord: '',          // parafoveal preview ghost
         progress: 0,
         isPlaying: false,
         totalWords: 0,
+        focusLineEnabled: false, // focus line toggle for bionic mode
+        rulerEnabled: false,       // reading ruler toggle
+        rulerPosition: 'reading-ruler-center', // 'reading-ruler-top' | 'reading-ruler-center'
+        paraFocusEnabled: false,   // paragraph focus — dims all but current paragraph in bionic mode
+
+        // PDF viewer
+        pdfUrl: "{{ FORCE_SCRIPT_NAME }}/media/{{ document.file_key }}",
+        pdfDoc: null,
+        pdfPage: 1,
+        pdfTotalPages: 0,
+        _pdfLoaded: false,
+
+        // Breathing break
+        breathingActive: false,      // overlay visible
+        breathingRunning: false,     // animation cycling
+        breathingPattern: 'box',     // 'box' | '478'
+        breathingPhase: 'inhale',    // 'inhale' | 'hold' | 'exhale' | 'rest'
+        breathingPhaseLabel: 'Breathe in...',
+        breathingCountdown: '4',
+        _breathingTimer: null,
+        _breathingCycle: 0,
+        _dmnBurstCount: 0,          // rolling DMN burst counter
+        _dmnBurstWindow: 0,         // timestamp when burst window started
+
+        // Highlights
+        highlights: [],              // [{text, startIndex, color, created_at}, ...]
+        _highlightToast: null,       // DOM reference for selection toast
+
+        // Working memory sidebar
+        workingMemory: [],           // [{startIndex, preview}, ...] last 5 paragraphs
+        memorySidebarOpen: true,     // sidebar open by default
+        _paragraphsData: [],         // [{startIndex, endIndex, preview}, ...] all paragraphs
+        _lastParaIdx: -1,            // last paragraph index the reader was in
+
+        // XP tracking
+        _xpWordsSinceLastReport: 0,  // words read since last XP report
+        _xpLastReportTime: 0,        // timestamp of last XP report
+
+        // Sentence-by-sentence mode
+        sentences: [],
+        currentSentenceIdx: 0,
+        currentSentence: '',
+        sentenceWordCount: 0,
         
         rsvpReader: null,
         bionicReader: null,
         saveTimeout: null,
+        hyperfocus: null,
+        sprintActive: false,
+        sprintPaused: false,
+        sprintDisplay: '25:00',
+        sprintRemaining: 1500,
+        
+        // Ritual state
+        showRitual: true,
+        ritualGoal: '',
+        ritualSprint: {{ profile_defaults.nudge_enabled|yesno:"25,0" }},
+        ritualNoise: {% if profile_defaults.default_noise_slug %}'{{ profile_defaults.default_noise_slug }}'{% else %}null{% endif %},
+        calibratingNoise: null,   // 'pink' | 'white' | 'brown' | null
+        _calibrationPlayer: null, // temporary NoisePlayer for calibration
+        
+        // Figure panel state
+        figures: [],
+        currentFigure: null,
+        currentFigureIndex: 0,
+        showFigurePanel: false,
+        zoomedFigure: null,
+        isMobile: window.innerWidth < 768,
+        
+        get hasPrevFigure() { return this.currentFigureIndex > 0; },
+        get hasNextFigure() { return this.currentFigureIndex < this.figures.length - 1; },
         
         init() {
             this.totalWords = this.text.split(/\s+/).filter(w => w.trim()).length;
+            // Parse sentences for sentence-by-sentence mode
+            this.sentences = this.text.match(/[^.!?\n]+[.!?]+(\n|$)?/g) || [];
+            if (this.sentences.length === 0 && this.text.trim()) {
+                this.sentences = [this.text.trim()];
+            }
+            // Build paragraph map for working memory sidebar
+            this._buildParagraphMap();
             this.setupReader();
             this.loadPosition();
-            
+            this.setupHyperfocus();
+            this.loadFigures();
+            this._loadHighlights();
+
             document.addEventListener('keydown', (e) => this.handleKeyboard(e));
         },
         
@@ -291,6 +1369,12 @@ function readerApp() {
                     this.currentWord = word;
                     this.currentIndex = index;
                     this.progress = index / this.totalWords;
+                    // Parafoveal preview: show ghost of next word
+                    this.nextWord = this.rsvpReader.getNextChunk() || '';
+                    if (this.hyperfocus) this.hyperfocus.onWord(index);
+                    this._updateWorkingMemory();
+                    this._reportXP();
+                    this._checkFigureReference(word);
                 },
                 onProgress: (p) => { this.progress = p; }
             });
@@ -316,51 +1400,67 @@ function readerApp() {
         toggle() {
             if (this.mode === 'rsvp') {
                 this.rsvpReader.toggle();
+            } else if (this.mode === 'sentence') {
+                this.nextSentence();
             }
         },
-        
+
         rewind() {
             if (this.mode === 'rsvp') {
                 this.rsvpReader.rewind(20);
                 this.currentIndex = this.rsvpReader.currentIndex;
+            } else if (this.mode === 'sentence') {
+                this.currentSentenceIdx = Math.max(0, this.currentSentenceIdx - 5);
+                this.currentSentence = this.sentences[this.currentSentenceIdx] || '';
             } else {
                 this.currentIndex = Math.max(0, this.currentIndex - 20);
                 this.bionicReader.goTo(this.currentIndex);
             }
             this.progress = this.currentIndex / this.totalWords;
+            this._updateWorkingMemory();
         },
         
         forward() {
             if (this.mode === 'rsvp') {
                 this.rsvpReader.forward(20);
                 this.currentIndex = this.rsvpReader.currentIndex;
+            } else if (this.mode === 'sentence') {
+                this.currentSentenceIdx = Math.min(this.sentences.length - 1, this.currentSentenceIdx + 5);
+                this.currentSentence = this.sentences[this.currentSentenceIdx] || '';
             } else {
                 this.currentIndex = Math.min(this.totalWords - 1, this.currentIndex + 20);
                 this.bionicReader.goTo(this.currentIndex);
             }
             this.progress = this.currentIndex / this.totalWords;
+            this._updateWorkingMemory();
         },
-        
+
         prev() {
             if (this.mode === 'rsvp') {
                 this.rsvpReader.rewind(1);
                 this.currentIndex = this.rsvpReader.currentIndex;
+            } else if (this.mode === 'sentence') {
+                this.prevSentence();
             } else {
                 this.currentIndex = Math.max(0, this.currentIndex - 1);
                 this.bionicReader.goTo(this.currentIndex);
             }
             this.progress = this.currentIndex / this.totalWords;
+            this._updateWorkingMemory();
         },
-        
+
         next() {
             if (this.mode === 'rsvp') {
                 this.rsvpReader.forward(1);
                 this.currentIndex = this.rsvpReader.currentIndex;
+            } else if (this.mode === 'sentence') {
+                this.nextSentence();
             } else {
                 this.currentIndex = Math.min(this.totalWords - 1, this.currentIndex + 1);
                 this.bionicReader.goTo(this.currentIndex);
             }
             this.progress = this.currentIndex / this.totalWords;
+            this._updateWorkingMemory();
         },
         
         setMode(newMode) {
@@ -371,7 +1471,38 @@ function readerApp() {
                     this.bionicReader.render(this.$refs.bionicContainer, this.currentIndex);
                 });
             }
+            if (this.mode === 'sentence') {
+                this.rsvpReader.pause();
+                this.isPlaying = false;
+                this.currentSentenceIdx = 0;
+                this.currentSentence = this.sentences[0] || '';
+                this.sentenceWordCount = this.currentSentence.split(/\s+/).filter(w => w.trim()).length;
+            }
+            if (this.mode === 'pdf') {
+                this.rsvpReader.pause();
+                this.isPlaying = false;
+                this.initPDF();
+            }
+            this._updateWorkingMemory();
             this.savePosition();
+        },
+
+        /** Sentence navigation: next sentence. */
+        nextSentence() {
+            if (this.currentSentenceIdx < this.sentences.length - 1) {
+                this.currentSentenceIdx++;
+                this.currentSentence = this.sentences[this.currentSentenceIdx];
+                this.sentenceWordCount = this.currentSentence.split(/\s+/).filter(w => w.trim()).length;
+            }
+        },
+
+        /** Sentence navigation: previous sentence. */
+        prevSentence() {
+            if (this.currentSentenceIdx > 0) {
+                this.currentSentenceIdx--;
+                this.currentSentence = this.sentences[this.currentSentenceIdx];
+                this.sentenceWordCount = this.currentSentence.split(/\s+/).filter(w => w.trim()).length;
+            }
         },
         
         updateWPM() {
@@ -386,15 +1517,18 @@ function readerApp() {
             this.bionicReader.setBoldIntensity(this.boldIntensity / 100);
         },
         
-        updateFont() {},
-        
+        updateFont() {
+            if (window.FONT_REGISTRY && window.FONT_REGISTRY[this.font]) {
+                document.documentElement.setAttribute('data-font', this.font);
+                localStorage.setItem('fixate-font', this.font);
+            }
+        },
+
         getFontFamily() {
-            const fonts = {
-                'inter': "'Inter', sans-serif",
-                'opendyslexic': "'OpenDyslexic', sans-serif",
-                'system': "system-ui, -apple-system, sans-serif"
-            };
-            return fonts[this.font] || fonts['inter'];
+            if (window.FONT_REGISTRY && window.FONT_REGISTRY[this.font]) {
+                return window.FONT_REGISTRY[this.font].family;
+            }
+            return "'Inter', sans-serif";
         },
         
         seekTo(event) {
@@ -409,6 +1543,7 @@ function readerApp() {
                 this.bionicReader.goTo(index);
             }
             this.progress = percent;
+            this._updateWorkingMemory();
         },
         
         handleKeyboard(e) {
@@ -424,6 +1559,11 @@ function readerApp() {
                     break;
                 case 'ArrowRight':
                     this.next();
+                    break;
+                case 'h':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        this.addHighlight();
+                    }
                     break;
             }
         },
@@ -448,12 +1588,897 @@ function readerApp() {
                     })
                 });
             }, 1000);
+
+            // Save Zeigarnik cliffhanger hook (next paragraph teaser)
+            if (this.text && this.currentIndex > 0) {
+                const progress = this.currentIndex / this.totalWords;
+                const { nextParagraph } = ZeigarnikEngine.extractNextParagraph(this.text, progress);
+                if (nextParagraph) {
+                    const zh = new ZeigarnikEngine();
+                    zh.saveCliffhanger({
+                        documentId: '{{ document.id }}',
+                        documentTitle: '{{ document.title|escapejs }}',
+                        position: progress,
+                        nextParagraph: nextParagraph,
+                    });
+                }
+            }
         },
         
         loadPosition() {
             this.currentIndex = {{ session.last_position|default:0 }};
-        }
+        },
+        
+        // ── Hyperfocus Methods ──
+        
+        setupHyperfocus() {
+            this.hyperfocus = new HyperfocusEngine({
+                onReward: (reward) => {
+                    const display = this.$refs.readerDisplay;
+                    if (reward.type === 'xp' || reward.type === 'emoji') {
+                        showXPPopup(reward.text || `+${reward.xp} XP`, display);
+                    } else if (reward.type === 'compliment') {
+                        showXPPopup(reward.text, display);
+                    }
+                    // Fire confetti on bigger rewards (every 3rd)
+                    if (this.hyperfocus && this.hyperfocus.rewardsGiven % 3 === 0) {
+                        fireConfetti(display);
+                    }
+                },
+                onNudge: () => {
+                    // Subtle pulse on the reader display
+                    const display = this.$refs.readerDisplay;
+                    display.style.transition = 'box-shadow 0.4s ease-out';
+                    display.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.3)';
+                    setTimeout(() => {
+                        display.style.boxShadow = 'none';
+                    }, 400);
+                },
+                onComprehensionCheck: ({ question }) => {
+                    showComprehensionCheck(question).then(response => {
+                        // Could track responses for comprehension scoring
+                    });
+                },
+                onDMNBurst: () => {
+                    // Track burst count for breathing break auto-offer
+                    const now = Date.now();
+                    if (now - this._dmnBurstWindow > 120000) {
+                        this._dmnBurstCount = 0;
+                        this._dmnBurstWindow = now;
+                    }
+                    this._dmnBurstCount++;
+                    
+                    // After 3+ bursts in 2 minutes, offer breathing break
+                    if (this._dmnBurstCount >= 3 && !this.breathingActive && !this.breathingRunning) {
+                        this._dmnBurstCount = 0;
+                        this._dmnBurstWindow = now;
+                        // Auto-pause reading and show breathing break
+                        if (this.mode === 'rsvp') this.rsvpReader.pause();
+                        this.isPlaying = false;
+                        this.breathingActive = true;
+                        return; // skip sound cue — breathing break itself is the intervention
+                    }
+
+                    // Sound cue: play a short attention-reset sound via Web Audio API
+                    if (!this._soundCues) {
+                        this._soundCues = new SoundCueEngine({
+                            ...SoundCueEngine.PRESETS.balanced,
+                            // Pause any active TTS/speech before playing cue
+                            onPlay: () => {
+                                // Browser built-in speech synthesis
+                                if (window.speechSynthesis) {
+                                    window.speechSynthesis.cancel();
+                                }
+                                // Custom TTS state (hook for future)
+                                if (window.__fixateTTS && window.__fixateTTS.pause) {
+                                    window.__fixateTTS.pause();
+                                }
+                            },
+                        });
+                    }
+                    this._soundCues.play();
+
+                    // Visual pulse — brief bright flash
+                    const display = this.$refs.readerDisplay;
+                    display.style.transition = 'box-shadow 0.15s ease-out, filter 0.15s ease-out';
+                    display.style.boxShadow = '0 0 30px rgba(99, 102, 241, 0.5)';
+                    display.style.filter = 'brightness(1.1)';
+                    setTimeout(() => {
+                        display.style.boxShadow = 'none';
+                        display.style.filter = 'brightness(1)';
+                    }, 200);
+                },
+                onSprintTick: ({ remaining }) => {
+                    this.sprintRemaining = remaining;
+                    const m = Math.floor(remaining / 60);
+                    const s = remaining % 60;
+                    this.sprintDisplay = `${m}:${String(s).padStart(2, '0')}`;
+                },
+                onSprintEnd: () => {
+                    this.sprintActive = false;
+                    this.sprintPaused = false;
+                    this.sprintDisplay = 'Done! 🎉';
+                    fireConfetti(this.$refs.readerDisplay);
+                    showXPPopup('Sprint Complete! 🏆', this.$refs.readerDisplay);
+                },
+            });
+        },
+        
+        startSprint(minutes) {
+            if (!this.hyperfocus) this.setupHyperfocus();
+            this.hyperfocus.startSprint(minutes);
+            this.sprintActive = true;
+            this.sprintPaused = false;
+            // Auto-play reading if paused
+            if (!this.isPlaying && this.mode === 'rsvp') {
+                this.rsvpReader.play();
+            }
+        },
+        
+        toggleSprint() {
+            if (this.sprintPaused) {
+                this.hyperfocus.resume();
+                this.sprintPaused = false;
+            } else {
+                this.hyperfocus.pause();
+                this.sprintPaused = true;
+            }
+        },
+        
+        endSprint() {
+            if (this.hyperfocus) this.hyperfocus.endSprint();
+            this.sprintActive = false;
+            this.sprintPaused = false;
+        },
+        
+        beginReading() {
+            this.showRitual = false;
+            
+            // Start sprint if selected
+            if (this.ritualSprint > 0) {
+                this.$nextTick(() => this.startSprint(this.ritualSprint));
+            }
+            
+            // Auto-play noise via the audio player component
+            if (this.ritualNoise) {
+                this.$nextTick(() => {
+                    const audioEl = document.querySelector('[x-data="audioPlayer()"]');
+                    if (audioEl && audioEl.__x) {
+                        const audioData = audioEl.__x.$data;
+                        const track = audioData.tracks.all?.find(t => t.slug === this.ritualNoise);
+                        if (track) audioData.play(track);
+                    }
+                });
+            }
+            
+            // Save ritual goal to session if you want
+            if (this.ritualGoal && this.sessionId) {
+                fetch(`/api/reader/session/${this.sessionId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+                    },
+                    body: JSON.stringify({ goal: this.ritualGoal })
+                }).catch(() => {});
+            }
+        },
+
+        // ── Noise Calibration ──
+
+        /** Play a 10-second sample of a noise type for the ritual modal. */
+        calibrateNoise(type) {
+            // Stop any current calibration
+            this.stopCalibration();
+
+            if (!this._calibrationPlayer) {
+                this._calibrationPlayer = new NoisePlayer();
+            }
+
+            this.calibratingNoise = type;
+            this._calibrationPlayer.setVolume(0.3);
+            this._calibrationPlayer.play(type);
+
+            // Auto-stop after 10 seconds
+            this._calibTimeout = setTimeout(() => this.stopCalibration(), 10000);
+        },
+
+        /** Stop the current calibration sample. */
+        stopCalibration() {
+            if (this._calibTimeout) clearTimeout(this._calibTimeout);
+            if (this._calibrationPlayer) {
+                this._calibrationPlayer.stop();
+            }
+            this.calibratingNoise = null;
+        },
+
+        // ── Figure Panel Methods ──
+        
+        async loadFigures() {
+            try {
+                const docId = {{ document.id }};
+                const resp = await fetch(`/api/documents/${docId}/figures/`, {
+                    headers: { 'X-CSRFToken': this._csrf() }
+                });
+                if (resp.ok) {
+                    this.figures = await resp.json();
+                    if (this.figures.length > 0) {
+                        this.showFigurePanel = !this.isMobile;
+                        this.selectFigure(0);
+                    }
+                }
+            } catch(e) {
+                // No figures or load failed — that's fine
+            }
+        },
+        
+        selectFigure(idx) {
+            if (idx >= 0 && idx < this.figures.length) {
+                this.currentFigureIndex = idx;
+                this.currentFigure = this.figures[idx];
+            }
+        },
+        
+        nextFigure() {
+            if (this.hasNextFigure) this.selectFigure(this.currentFigureIndex + 1);
+        },
+        
+        prevFigure() {
+            if (this.hasPrevFigure) this.selectFigure(this.currentFigureIndex - 1);
+        },
+        
+        zoomFigure(fig) {
+            this.zoomedFigure = fig;
+            if (fig) document.body.style.overflow = 'hidden';
+            else document.body.style.overflow = '';
+        },
+        
+        /** Check if current text chunk references a figure, auto-show it. */
+        _checkFigureReference(textChunk) {
+            if (!this.figures.length) return;
+            
+            const match = textChunk.match(/Figure\s+(\d+(?:\.\d+)?)/i)
+                       || textChunk.match(/Fig\.?\s*(\d+(?:\.\d+)?)/i);
+            if (!match) return;
+            
+            const refNum = match[1];
+            // Find figure with matching number
+            const idx = this.figures.findIndex(f => f.figure_number === refNum);
+            if (idx >= 0 && idx !== this.currentFigureIndex) {
+                this.selectFigure(idx);
+                if (!this.showFigurePanel) {
+                    this.showFigurePanel = true;
+                }
+            }
+        },
+
+        // ── Working Memory Sidebar ──
+
+        /**
+         * Build a map of all paragraphs: split text by double-newline,
+         * find word index ranges, and store 150-char previews.
+         */
+        _buildParagraphMap() {
+            const words = this.text.split(/\s+/).filter(w => w.trim());
+            const paragraphs = this.text.split(/\n\n+/).filter(p => p.trim());
+            let wordCursor = 0;
+            this._paragraphsData = [];
+
+            for (const para of paragraphs) {
+                const paraWords = para.split(/\s+/).filter(w => w.trim());
+                const startIdx = wordCursor;
+                const endIdx = wordCursor + paraWords.length;
+                const preview = para.trim().substring(0, 150) + (para.trim().length > 150 ? '...' : '');
+
+                this._paragraphsData.push({
+                    startIndex: startIdx,
+                    endIndex: endIdx,
+                    preview: preview,
+                });
+                wordCursor = endIdx;
+            }
+        },
+
+        /**
+         * Called whenever position changes. Captures paragraphs that the
+         * reader has passed/is reading into working memory (last 5).
+         */
+        _updateWorkingMemory() {
+            if (!this._paragraphsData.length) return;
+
+            // Find which paragraph contains the current word index
+            let currentParaIdx = -1;
+            for (let i = 0; i < this._paragraphsData.length; i++) {
+                if (this.currentIndex >= this._paragraphsData[i].startIndex &&
+                    this.currentIndex < this._paragraphsData[i].endIndex) {
+                    currentParaIdx = i;
+                    break;
+                }
+            }
+            if (currentParaIdx < 0) {
+                // Clamp to nearest
+                currentParaIdx = this._paragraphsData.length - 1;
+            }
+
+            if (currentParaIdx !== this._lastParaIdx) {
+                this._lastParaIdx = currentParaIdx;
+                // Collect paragraphs from current back to current-4
+                const newMemory = [];
+                for (let i = currentParaIdx; i >= 0 && newMemory.length < 5; i--) {
+                    newMemory.push(this._paragraphsData[i]);
+                }
+                this.workingMemory = newMemory;
+            }
+        },
+
+        /** Click handler: jump the reader back to a paragraph's start. */
+        jumpToMemoryParagraph(startIndex) {
+            this.currentIndex = startIndex;
+            if (this.mode === 'rsvp') {
+                this.rsvpReader.goTo(startIndex);
+            } else if (this.mode === 'bionic') {
+                this.bionicReader.goTo(startIndex);
+            } else if (this.mode === 'sentence') {
+                // Find sentence closest to this word index
+                let wordCount = 0;
+                for (let i = 0; i < this.sentences.length; i++) {
+                    const sWords = this.sentences[i].split(/\s+/).filter(w => w.trim()).length;
+                    if (startIndex >= wordCount && startIndex < wordCount + sWords) {
+                        this.currentSentenceIdx = i;
+                        this.currentSentence = this.sentences[i];
+                        break;
+                    }
+                    wordCount += sWords;
+                }
+            }
+            this.progress = this.currentIndex / this.totalWords;
+            this._updateWorkingMemory();
+        },
+        
+        // ── XP Tracking ──
+
+        /**
+         * Report XP at intervals — every 100 words or 60 seconds.
+         * Sends words_read event to the server for gamification.
+         */
+        _reportXP() {
+            this._xpWordsSinceLastReport++;
+            const now = Date.now();
+
+            // Report every 100 words or every 60 seconds
+            if (this._xpWordsSinceLastReport >= 100 || 
+                (this._xpWordsSinceLastReport > 0 && now - this._xpLastReportTime > 60000)) {
+                
+                const words = this._xpWordsSinceLastReport;
+                const xpAmount = Math.max(1, Math.floor(words / 10)); // 1 XP per 10 words
+                const minutes = Math.round(words / 200); // ~200 WPM estimate
+
+                fetch('/api/reader/xp/event/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this._csrf(),
+                    },
+                    body: JSON.stringify({
+                        event_type: 'words_read',
+                        xp_amount: xpAmount,
+                        words_read: words,
+                        minutes_read: Math.max(1, minutes),
+                        metadata: { document_id: {{ document.id }}, mode: this.mode },
+                    }),
+                }).catch(() => {});
+
+                // Show XP popup for feedback
+                if (xpAmount >= 5) {
+                    showXPPopup(`+${xpAmount} XP`, this.$refs.readerDisplay);
+                }
+
+                this._xpWordsSinceLastReport = 0;
+                this._xpLastReportTime = now;
+            }
+        },
+
+        // ── Breathing Break ──
+
+        /**
+         * Start a guided breathing exercise. Cycles through box breathing (4-4-4-4)
+         * or 4-7-8 pattern. Animated circle expands on inhale, contracts on exhale.
+         */
+        startBreathing() {
+            this.breathingRunning = true;
+            this._breathingCycle = 0;
+            this._runBreathingCycle();
+        },
+
+        /**
+         * Stop the breathing exercise and resume reading.
+         */
+        stopBreathing() {
+            this.breathingActive = false;
+            this.breathingRunning = false;
+            if (this._breathingTimer) {
+                clearTimeout(this._breathingTimer);
+                this._breathingTimer = null;
+            }
+        },
+
+        /** Run one full breathing cycle (inhale → hold → exhale → rest). */
+        _runBreathingCycle() {
+            if (!this.breathingRunning || this._breathingCycle >= 4) {
+                // Done with all 4 cycles
+                if (this._breathingCycle >= 4) {
+                    this.stopBreathing();
+                }
+                return;
+            }
+
+            const phases = this.breathingPattern === '478' 
+                ? [
+                    { phase: 'inhale', label: 'Breathe in through your nose...', seconds: 4 },
+                    { phase: 'hold', label: 'Hold it...', seconds: 7 },
+                    { phase: 'exhale', label: 'Exhale through your mouth...', seconds: 8 },
+                ]
+                : [
+                    { phase: 'inhale', label: 'Breathe in...', seconds: 4 },
+                    { phase: 'hold', label: 'Hold...', seconds: 4 },
+                    { phase: 'exhale', label: 'Breathe out...', seconds: 4 },
+                    { phase: 'rest', label: 'Rest...', seconds: 4 },
+                ];
+
+            let step = 0;
+            const runPhase = () => {
+                if (!this.breathingRunning) return;
+                if (step >= phases.length) {
+                    this._breathingCycle++;
+                    this._runBreathingCycle();
+                    return;
+                }
+
+                const p = phases[step];
+                this.breathingPhase = p.phase;
+                this.breathingPhaseLabel = p.label;
+                this.breathingCountdown = String(p.seconds);
+
+                // Countdown
+                let remaining = p.seconds;
+                this._breathingTimer = setInterval(() => {
+                    remaining--;
+                    if (remaining <= 0) {
+                        clearInterval(this._breathingTimer);
+                        step++;
+                        runPhase();
+                    } else {
+                        this.breathingCountdown = String(remaining);
+                    }
+                }, 1000);
+            };
+
+            runPhase();
+        },
+
+        _csrf() {
+            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        },
+
+        // ── Text Highlighting ──
+
+        /** Load saved highlights from localStorage for this document. */
+        _loadHighlights() {
+            try {
+                const key = `fixate-highlights-{{ document.id }}`;
+                const saved = localStorage.getItem(key);
+                if (saved) this.highlights = JSON.parse(saved);
+            } catch(e) {
+                this.highlights = [];
+            }
+        },
+
+        /** Save highlights to localStorage. */
+        _saveHighlights() {
+            const key = `fixate-highlights-{{ document.id }}`;
+            localStorage.setItem(key, JSON.stringify(this.highlights));
+            // Also sync to server for cross-document search
+            this._syncHighlightsToServer();
+        },
+
+        /** Sync highlights to server for cross-document journal. */
+        async _syncHighlightsToServer() {
+            try {
+                await fetch('/api/reader/highlights/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this._csrf(),
+                    },
+                    body: JSON.stringify({
+                        document_id: {{ document.id }},
+                        highlights: this.highlights,
+                    }),
+                });
+            } catch(e) {
+                // Silent fail — localStorage is still the source of truth
+            }
+        },
+
+        /**
+         * Highlight the current passage. In RSVP mode, captures the current word/chunk.
+         * In bionic mode, captures surrounding paragraph. In sentence mode, captures
+         * the current sentence.
+         */
+        addHighlight(textOverride) {
+            let text = textOverride || '';
+            let startIdx = this.currentIndex;
+
+            if (!text) {
+                if (this.mode === 'rsvp') {
+                    text = this.currentWord || '';
+                    if (!text.trim()) return;
+                } else if (this.mode === 'sentence') {
+                    text = this.currentSentence || '';
+                    if (!text.trim()) return;
+                    // Estimate start index from sentence position
+                    let wc = 0;
+                    for (let i = 0; i < this.currentSentenceIdx; i++) {
+                        wc += (this.sentences[i] || '').split(/\s+/).filter(w => w.trim()).length;
+                    }
+                    startIdx = wc;
+                } else {
+                    // Bionic mode: capture current paragraph
+                    if (this._lastParaIdx >= 0 && this._paragraphsData[this._lastParaIdx]) {
+                        const para = this._paragraphsData[this._lastParaIdx];
+                        text = this.text.split(/\n\n+/)[this._lastParaIdx] || '';
+                        startIdx = para.startIndex;
+                    } else {
+                        // Fallback: extract 100 chars around current position
+                        const allWords = this.text.split(/\s+/).filter(w => w.trim());
+                        const contextStart = Math.max(0, this.currentIndex - 20);
+                        const contextEnd = Math.min(allWords.length, this.currentIndex + 30);
+                        text = allWords.slice(contextStart, contextEnd).join(' ');
+                        startIdx = contextStart;
+                    }
+                }
+            }
+
+            if (!text.trim()) return;
+
+            // Check for duplicates (same startIndex within 5 words)
+            const isDuplicate = this.highlights.some(h => Math.abs(h.startIndex - startIdx) < 5);
+            if (isDuplicate) {
+                this._showToast('Already highlighted nearby', false);
+                return;
+            }
+
+            this.highlights.push({
+                text: text.trim(),
+                startIndex: startIdx,
+                color: '#fbbf24',
+                created_at: new Date().toISOString(),
+            });
+
+            // Keep last 50 highlights
+            if (this.highlights.length > 50) {
+                this.highlights = this.highlights.slice(-50);
+            }
+
+            this._saveHighlights();
+            this._showToast('💡 Highlighted!');
+        },
+
+        /**
+         * Create a flashcard from a highlight. Auto-creates a deck for this
+         * document if one doesn't exist, then adds the highlight as a card.
+         */
+        async createFlashcardFromHighlight(highlight) {
+            const deckName = '{{ document.title|escapejs }}';
+            
+            try {
+                // Find or create a deck for this document
+                let resp = await fetch('/api/reader/flashcards/decks/', {
+                    headers: { 'X-CSRFToken': this._csrf() }
+                });
+                const decks = resp.ok ? await resp.json() : [];
+                let deck = decks.find(d => d.name === deckName);
+
+                if (!deck) {
+                    resp = await fetch('/api/reader/flashcards/decks/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this._csrf()
+                        },
+                        body: JSON.stringify({ name: deckName, document: {{ document.id }} })
+                    });
+                    if (resp.ok) deck = await resp.json();
+                    else throw new Error('Could not create deck');
+                }
+
+                // Create card from highlight
+                resp = await fetch('/api/reader/flashcards/cards/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this._csrf()
+                    },
+                    body: JSON.stringify({
+                        deck: deck.id,
+                        front: highlight.text,
+                        back: '',
+                        source_text: highlight.text,
+                        source_index: highlight.startIndex,
+                    })
+                });
+
+                if (resp.ok) {
+                    this._showToast('🃏 Flashcard created!');
+                }
+            } catch(e) {
+                this._showToast('Failed to create flashcard', false);
+            }
+        },
+
+        /** Show a brief toast notification. */
+        _showToast(msg, autoDismiss = true) {
+            // Remove existing toast
+            if (this._highlightToast) {
+                this._highlightToast.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = 'highlight-toast';
+            toast.innerHTML = `<span>${msg}</span>`;
+            if (autoDismiss) {
+                const dismiss = document.createElement('button');
+                dismiss.className = 'dismiss';
+                dismiss.textContent = '×';
+                dismiss.onclick = () => toast.remove();
+                toast.appendChild(dismiss);
+            }
+            document.body.appendChild(toast);
+            this._highlightToast = toast;
+
+            if (autoDismiss) {
+                setTimeout(() => {
+                    if (toast.parentNode) toast.remove();
+                    if (this._highlightToast === toast) this._highlightToast = null;
+                }, 2500);
+            }
+        },
     }
+}
+
+// ── TTS Player Component (with Attention Hack Engine) ──
+function ttsPlayer() {
+    return {
+        showPanel: false,
+        isReading: false,
+        isPaused: false,
+        voices: [],
+        selectedVoice: '',
+        rate: 1.0,
+        ttsVolume: 0.8,
+        _tts: null,
+        _hacks: null,
+        _soundCues: null,
+
+        // Attention hack state
+        hacksEnabled: false,
+        hackMode: 'overlap-bridge',
+        hackIntensity: 0.5,
+        hacksActive: false,
+        hackModes: AttentionHackEngine.MODES,
+        hackSegment: 0,
+        hackTotal: 0,
+
+        get hackModeDesc() {
+            const m = AttentionHackEngine.MODES.find(m => m.id === this.hackMode);
+            return m ? m.desc : '';
+        },
+        get hackModeLabel() {
+            const m = AttentionHackEngine.MODES.find(m => m.id === this.hackMode);
+            return m ? m.label : this.hackMode;
+        },
+
+        async init() {
+            this._tts = new FixateTTS({
+                onEnd: () => {
+                    if (!this.hacksActive) {
+                        this.isReading = false;
+                        this.isPaused = false;
+                    }
+                },
+            });
+            // Lazy-init sound cue engine (reuse if already on page)
+            if (window.__fixateSoundCues) {
+                this._soundCues = window.__fixateSoundCues;
+            } else {
+                this._soundCues = new SoundCueEngine({
+                    ...SoundCueEngine.PRESETS.balanced,
+                    onPlay: () => {
+                        if (window.speechSynthesis) window.speechSynthesis.cancel();
+                        if (window.__fixateTTS && window.__fixateTTS.pause) window.__fixateTTS.pause();
+                    },
+                });
+                window.__fixateSoundCues = this._soundCues;
+            }
+
+            // Load voices (async on Chrome)
+            this.voices = await this._tts.getVoicesAsync();
+            // Restore from localStorage
+            const saved = JSON.parse(localStorage.getItem('fixate-tts') || '{}');
+            if (saved.voiceName) this.selectedVoice = saved.voiceName;
+            if (saved.rate) this.rate = saved.rate;
+            if (saved.volume !== undefined) this.ttsVolume = saved.volume;
+            if (saved.hacksEnabled !== undefined) this.hacksEnabled = saved.hacksEnabled;
+            if (saved.hackMode) this.hackMode = saved.hackMode;
+            if (saved.hackIntensity !== undefined) this.hackIntensity = saved.hackIntensity;
+            this._tts.setRate(this.rate);
+            this._tts.setVolume(this.ttsVolume);
+            if (this.selectedVoice) this._tts.setVoice(this.selectedVoice);
+        },
+
+        startReading() {
+            const app = document.querySelector('[x-data="readerApp()"]');
+            const text = app?.__x?.$data?.documentText || '';
+            if (!text) return;
+
+            this.isReading = true;
+            this.isPaused = false;
+
+            if (this.hacksEnabled && text.length > 100) {
+                // Use attention hack engine — splits into segments, applies transitions
+                this.hacksActive = true;
+                this._tts.setRate(this.rate);
+                this._tts.setVolume(this.ttsVolume);
+                if (this.selectedVoice) this._tts.setVoice(this.selectedVoice);
+
+                this._hacks = new AttentionHackEngine({
+                    tts: this._tts,
+                    soundCues: this._soundCues,
+                    mode: this.hackMode,
+                    intensity: this.hackIntensity,
+                    onSegmentChange: ({ current, total, done }) => {
+                        if (done) {
+                            this.isReading = false;
+                            this.isPaused = false;
+                            this.hacksActive = false;
+                            this.hackSegment = 0;
+                            this.hackTotal = 0;
+                        } else if (current && total) {
+                            this.hackSegment = current;
+                            this.hackTotal = total;
+                        }
+                    },
+                });
+                this._hacks.startReading(text);
+            } else {
+                // Plain TTS — read entire document as one blob
+                this.hacksActive = false;
+                this._tts.setRate(this.rate);
+                this._tts.setVolume(this.ttsVolume);
+                if (this.selectedVoice) this._tts.setVoice(this.selectedVoice);
+                this._tts.speak(text);
+            }
+        },
+
+        pauseReading() {
+            if (this.hacksActive && this._hacks) {
+                this._hacks.pause();
+            } else {
+                this._tts.pause();
+            }
+            this.isPaused = true;
+        },
+
+        resumeReading() {
+            if (this.hacksActive && this._hacks) {
+                this._hacks.resume();
+            } else {
+                this._tts.resume();
+            }
+            this.isPaused = false;
+        },
+
+        stopReading() {
+            if (this.hacksActive && this._hacks) {
+                this._hacks.stop();
+                this.hacksActive = false;
+            } else {
+                this._tts.stop();
+            }
+            this.isReading = false;
+            this.isPaused = false;
+            this.hackSegment = 0;
+            this.hackTotal = 0;
+        },
+
+        onVoiceChange() {
+            this._tts.setVoice(this.selectedVoice);
+        },
+        onRateChange() {
+            this._tts.setRate(this.rate);
+        },
+        onVolumeChange() {
+            this._tts.setVolume(this.ttsVolume);
+        },
+
+        // Attention hack settings
+        onHacksToggle() {
+            this._saveSettings();
+        },
+        onHackModeChange() {
+            if (this._hacks) this._hacks.setMode(this.hackMode);
+            this._saveSettings();
+        },
+        onHackIntensityChange() {
+            if (this._hacks) this._hacks.setIntensity(this.hackIntensity);
+            this._saveSettings();
+        },
+
+        _saveSettings() {
+            localStorage.setItem('fixate-tts', JSON.stringify({
+                rate: this.rate,
+                volume: this.ttsVolume,
+                voiceName: this.selectedVoice,
+                hacksEnabled: this.hacksEnabled,
+                hackMode: this.hackMode,
+                hackIntensity: this.hackIntensity,
+            }));
+        },
+
+        // ── PDF Report ──
+        downloadReport() {
+            // Download annotated PDF: original document + highlights appendix
+            const url = `/api/reader/export/{{ document.id }}/`;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fixate-{{ document.title|escapejs }}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        },
+
+        // ── PDF Viewer (PDF.js) ──
+        async initPDF() {
+            if (this._pdfLoaded && this.pdfDoc) return;
+            const pdfjsLib = window['pdfjs-dist/build/pdf'];
+            if (!pdfjsLib) {
+                console.error('PDF.js library not loaded');
+                return;
+            }
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            try {
+                const loadingTask = pdfjsLib.getDocument(this.pdfUrl);
+                this.pdfDoc = await loadingTask.promise;
+                this.pdfTotalPages = this.pdfDoc.numPages;
+                this.pdfPage = 1;
+                this._pdfLoaded = true;
+                await this.renderPDFPage();
+            } catch (err) {
+                console.error('Failed to load PDF:', err);
+            }
+        },
+
+        async renderPDFPage() {
+            if (!this.pdfDoc) return;
+            if (this.pdfPage < 1) this.pdfPage = 1;
+            if (this.pdfPage > this.pdfTotalPages) this.pdfPage = this.pdfTotalPages;
+            try {
+                const page = await this.pdfDoc.getPage(this.pdfPage);
+                const canvas = this.$refs.pdfCanvas;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const containerWidth = this.$refs.pdfContainer?.clientWidth || 800;
+                const viewport = page.getViewport({ scale: 1 });
+                const scale = containerWidth / viewport.width;
+                const scaledViewport = page.getViewport({ scale });
+                canvas.width = scaledViewport.width;
+                canvas.height = scaledViewport.height;
+                await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+            } catch (err) {
+                console.error('Failed to render PDF page:', err);
+            }
+        },
+    };
 }
 </script>
 {% endblock %}

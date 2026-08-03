@@ -1,434 +1,3309 @@
 {% extends "base.html" %}
+{% load static %}
+{% block title %}Fixate — Focus Dashboard{% endblock %}
 
-{% block title %}Dashboard - Fixate{% endblock %}
+{# ═══════════════════════════════════════════════════════════════ #}
+{#  CSS — Flocus-inspired ambient focus design                    #}
+{# ═══════════════════════════════════════════════════════════════ #}
+{% block extra_css %}
+<style>
+/* ── Design Tokens ── */
+:root {
+    --glass-alpha: 0.45;
+    --glass-blur: 24px;
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    --panel-width: 380px;
+    --accent: #7c3aed;
+    --text-primary: #e8e8ee;
+    --text-secondary: #8888a0;
+}
 
+/* ── Fullscreen Background ── */
+#video-bg-layer {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    opacity: 1 !important;
+    background: linear-gradient(160deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #0a0a14 100%);
+}
+#video-bg-layer iframe {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 177.78vh; height: 100vh;
+    min-width: 100%; min-height: 56.25vw;
+    pointer-events: none;
+}
+#video-bg-overlay {
+    position: fixed; inset: 0; z-index: 1;
+    background: rgba(8,8,10,0.35);
+    transition: background 0.6s ease;
+    pointer-events: none;
+}
+
+/* ── CSS Gradient Background Scenes ── */
+.bg-gradient-northern { background: linear-gradient(160deg, #0c0c1d 0%, #1a1a3e 30%, #0d4d4d 60%, #1a0a2e 100%) !important; }
+.bg-gradient-ocean { background: linear-gradient(180deg, #0a1628 0%, #0d2137 30%, #0c3448 60%, #0a1a2e 100%) !important; }
+.bg-gradient-sunset { background: linear-gradient(160deg, #1a0a0a 0%, #3e1a1a 30%, #4d2d0d 60%, #2e1a0a 100%) !important; }
+.bg-gradient-forest { background: linear-gradient(180deg, #0a1a0a 0%, #0d2d0d 30%, #1a3e1a 60%, #0a1a0a 100%) !important; }
+.bg-gradient-cyberpunk { background: linear-gradient(160deg, #1a0a2e 0%, #2e0a3e 30%, #1a0a4d 60%, #0a0a2e 100%) !important; }
+.bg-gradient-sunrise { background: linear-gradient(180deg, #1a0a0a 0%, #3e1a1a 25%, #4d2d0d 50%, #2e1a0a 100%) !important; }
+.bg-gradient-lavender { background: linear-gradient(160deg, #1a0a2e 0%, #2e0a3e 30%, #3e1a4d 60%, #2e1a3e 100%) !important; }
+.bg-gradient-peach { background: linear-gradient(160deg, #1a0a0a 0%, #3e1a1a 25%, #4d3e2e 50%, #2e2a1a 100%) !important; }
+.bg-gradient-mint { background: linear-gradient(180deg, #0a1a1a 0%, #0a2e2e 30%, #1a3e3e 60%, #0a1a1a 100%) !important; }
+
+/* ── Glass Panel Base ── */
+.glass-panel {
+    background: rgba(18,18,18,var(--glass-alpha));
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+}
+.glass-panel-inner {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    transition: background 0.4s ease;
+}
+
+/* ── Body + Dashboard Layout ── */
+body { background: #080810; margin: 0; overflow: hidden; }
+.fx-dashboard {
+    position: relative; z-index: 2;
+    min-height: 100vh; height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 80px 20px 100px;
+    box-sizing: border-box;
+}
+
+
+/* ── Glass Panel Base ── */
+.glass-panel {
+    background: rgba(18,18,18,0.35);
+    backdrop-filter: blur(40px) saturate(160%);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    transition: background 0.4s ease, backdrop-filter 0.4s ease;
+}
+.fx-greeting-text {
+    font-size: 20px; font-weight: 500; color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3); letter-spacing: -0.2px;
+}
+
+/* ── Top Bar ── */
+.fx-topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 24px 28px;
+    background: none; border: none; box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.fx-greeting { display: flex; align-items: center; gap: 8px; }
+.fx-greeting-emoji { font-size: 26px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3)); }
+.fx-topbar-right { display: flex; align-items: center; gap: 14px; }
+.fx-weather-chip {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 14px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.fx-branding {
+    font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.6);
+    text-decoration: none; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: color 0.2s;
+}
+.fx-branding:hover { color: #fff; }
+.fx-branding span { color: #fff; font-weight: 600; }
+.fx-fullscreen-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08); color: #fff;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.fx-fullscreen-btn:hover { background: rgba(255,255,255,0.18); }
+
+/* Mode Pills */
+.fx-mode-pills { display: flex; gap: 4px; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 3px; }
+.fx-mode-pills button {
+    width: 34px; height: 30px; border: none; background: transparent;
+    border-radius: 8px; cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.fx-mode-pills button:hover { background: rgba(255,255,255,0.08); }
+.fx-mode-pills button.active { background: var(--accent); }
+
+/* Top Nav */
+.fx-topnav { display: flex; align-items: center; gap: 10px; }
+.fx-topnav a { text-decoration: none; font-size: 16px; opacity: 0.7; transition: opacity 0.2s; }
+.fx-topnav a:hover { opacity: 1; }
+.fx-user-tag { font-size: 12px; color: var(--text-secondary); }
+.fx-logout { text-decoration: none; color: var(--text-secondary); font-size: 14px; }
+
+/* ── Hero: Timer ── */
+.fx-hero {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+    width: 100%; max-width: 480px;
+}
+.fx-timer-card {
+    width: 100%; padding: 32px 28px 24px;
+    border-radius: 24px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.fx-timer-modes { display: flex; gap: 6px; }
+.fx-timer-modes button {
+    width: 42px; height: 36px; border: none; background: rgba(255,255,255,0.05);
+    border-radius: 10px; cursor: pointer; font-size: 16px;
+    transition: all 0.2s;
+}
+.fx-timer-modes button:hover { background: rgba(255,255,255,0.1); }
+.fx-timer-modes button.active { background: var(--accent); }
+
+/* Timer Display */
+.fx-timer-display { position: relative; width: 200px; height: 200px; }
+.fx-timer-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.fx-timer-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+}
+.fx-timer-digits {
+    font-size: 48px; font-weight: 300; letter-spacing: 2px;
+    color: var(--text-primary); font-variant-numeric: tabular-nums;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
+    cursor: pointer;
+}
+.fx-timer-label { font-size: 13px; color: var(--text-secondary); }
+
+/* Timer Controls */
+.fx-timer-controls { display: flex; gap: 12px; }
+.fx-btn {
+    padding: 10px 20px; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06); color: var(--text-primary);
+    border-radius: 12px; cursor: pointer; font-size: 15px; font-family: inherit;
+    transition: all 0.2s; backdrop-filter: blur(8px);
+}
+.fx-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+.fx-btn:disabled { opacity: 0.3; cursor: default; }
+.fx-btn.small { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+.fx-btn-play, .fx-btn-pause {
+    width: 52px; height: 52px; border-radius: 50%; font-size: 20px;
+    padding: 0; display: flex; align-items: center; justify-content: center;
+}
+.fx-btn-stop { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.fx-btn-stop:hover { background: rgba(239,68,68,0.15); }
+
+/* Timer Config */
+.fx-timer-config { display: flex; gap: 16px; justify-content: center; }
+.fx-cfg-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.fx-cfg-item input {
+    width: 48px; padding: 4px 6px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+    color: var(--text-primary); font-size: 13px; text-align: center; font-family: inherit;
+}
+
+/* Motivation Toast */
+.fx-motivation {
+    padding: 8px 16px; background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.25); border-radius: 10px;
+    font-size: 13px; color: var(--accent);
+    display: none;
+}
+.fx-motivation.visible { display: block; }
+
+/* ── Quote ── */
+.fx-quote {
+    text-align: center; padding: 12px 0 16px; opacity: 0.5;
+    transition: opacity 0.5s ease; max-width: 440px;
+}
+.fx-quote-text {
+    font-size: 13px; font-style: italic; color: var(--text-primary);
+    display: block; line-height: 1.5; letter-spacing: -0.1px;
+}
+.fx-quote-author {
+    font-size: 11px; color: var(--text-secondary);
+    margin-top: 4px; display: block;
+}
+
+/* ── Intent Bar ── */
+.fx-intent-bar {
+    width: 100%; padding: 10px 16px; border-radius: 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.fx-intent-left { display: flex; align-items: center; gap: 8px; flex: 1; }
+.fx-intent-input {
+    flex: 1; padding: 8px 12px; background: transparent; border: none;
+    color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none;
+}
+.fx-intent-input::placeholder { color: var(--text-secondary); }
+.fx-intent-right { display: flex; align-items: center; gap: 12px; }
+.fx-goal-ring { position: relative; width: 44px; height: 44px; cursor: pointer; }
+.fx-goal-ring svg { position: absolute; inset: 0; }
+.fx-goal-val {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--text-primary);
+}
+.fx-session-display { text-align: right; }
+.fx-session-label {
+    font-size: 12px; color: var(--text-secondary); display: block;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fx-session-time {
+    font-size: 18px; font-weight: 500; color: var(--accent);
+    font-variant-numeric: tabular-nums; font-family: 'SF Mono', monospace;
+}
+.fx-session-time.paused { color: var(--text-secondary); }
+
+/* ── Ambient Bar (bottom) ── */
+.fx-ambient-bar {
+    width: 100%; max-width: 600px;
+    display: flex; justify-content: center; align-items: center; gap: 10px;
+    padding: 10px 18px; border-radius: 20px; margin-top: 8px;
+}
+.fx-amb-section { display: flex; align-items: center; gap: 8px; }
+.fx-amb-btn {
+    width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); border-radius: 50%; cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; color: var(--text-primary);
+}
+.fx-amb-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.18); }
+.fx-amb-btn.active { background: var(--accent); border-color: var(--accent); }
+
+/* Transparency Slider */
+.fx-transparency { display: flex; align-items: center; gap: 8px; }
+.fx-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 80px; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.15); outline: none;
+}
+.fx-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--text-primary); cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ── Slide-Out Panels ── */
+.fx-panel-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.3);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.fx-panel-backdrop.visible { opacity: 1; pointer-events: auto; }
+
+.fx-slide-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 60;
+    width: var(--panel-width); max-width: 95vw;
+    border-radius: 20px 0 0 20px; border-right: none;
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.fx-slide-panel.open { transform: translateX(0); }
+
+.fx-panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+}
+.fx-panel-header h3 { font-size: 16px; font-weight: 600; margin: 0; }
+.fx-panel-close {
+    background: none; border: none; color: var(--text-secondary);
+    font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+.fx-panel-close:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.fx-panel-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* ── Preset Grids ── */
+.fx-preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.fx-bg-preset {
+    padding: 12px 8px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); border-radius: 12px;
+    cursor: pointer; text-align: center; font-size: 13px; color: var(--text-primary);
+    font-family: inherit; transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.fx-bg-preset:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+.fx-bg-preset.active { border-color: var(--accent); background: rgba(124,58,237,0.15); }
+.fx-bg-preset-icon { font-size: 24px; }
+.fx-preset-chip {
+    padding: 6px 12px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); border-radius: 8px;
+    cursor: pointer; font-size: 12px; color: var(--text-primary); font-family: inherit;
+    transition: all 0.15s;
+}
+.fx-preset-chip:hover { background: rgba(255,255,255,0.08); }
+.fx-preset-chip.used { border-color: var(--accent); opacity: 0.5; }
+.fx-preset-divider {
+    display: flex; align-items: center; gap: 12px; margin: 16px 0 8px;
+}
+.fx-preset-divider::before, .fx-preset-divider::after {
+    content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08);
+}
+.fx-preset-divider span {
+    font-size: 11px; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* ── Noise Generator Grid ── */
+.fx-noise-grid { display: flex; flex-direction: column; gap: 8px; }
+.fx-noise-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: rgba(255,255,255,0.03);
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
+}
+.fx-noise-toggle {
+    padding: 6px 12px; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04); border-radius: 8px;
+    cursor: pointer; font-size: 12px; color: var(--text-secondary);
+    font-family: inherit; min-width: 80px; text-align: left;
+    transition: all 0.2s;
+}
+.fx-noise-toggle:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.fx-noise-toggle.active { border-color: var(--accent); background: rgba(124,58,237,0.2); color: #fff; }
+.fx-noise-slider { flex: 1; min-width: 60px; height: 4px; }
+.fx-noise-val { font-size: 12px; color: var(--text-secondary); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Coworking Panel ── */
+.fx-cw-row { display: flex; gap: 8px; align-items: center; }
+.fx-cw-room-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.fx-cw-presence { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 24px; }
+.fx-cw-presence-badge { padding: 3px 8px; background: rgba(124,58,237,0.15); border-radius: 12px; font-size: 11px; color: var(--text-primary); }
+.fx-cw-chat { max-height: 200px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.fx-cw-msg { padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 8px; font-size: 12px; }
+.fx-cw-msg-sender { color: var(--accent); font-weight: 600; margin-right: 6px; }
+.fx-cw-msg-time { color: var(--text-secondary); font-size: 10px; margin-left: 8px; }
+.fx-cw-msg-system { color: var(--text-secondary); font-style: italic; font-size: 11px; }
+.fx-cw-input-row { display: flex; gap: 8px; }
+.fx-cw-timer { padding: 10px; background: rgba(0,0,0,0.2); border-radius: 10px; margin: 10px 0; }
+
+/* ── Custom URL / Input Rows ── */
+.fx-url-row, .fx-spotify-row, .fx-overlay-row {
+    display: flex; gap: 8px; align-items: center; margin-top: 12px;
+}
+.fx-url-row input, .fx-spotify-row input {
+    flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+.fx-overlay-row { font-size: 13px; color: var(--text-secondary); }
+.fx-overlay-row input { flex: 1; }
+.fx-error { color: #ef4444; font-size: 12px; margin-top: 6px; }
+
+/* ── Sound Mixer ── */
+.fx-mixer-master { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-size: 13px; }
+.fx-mixer-master input { flex: 1; }
+.fx-mixer-layer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; margin-bottom: 6px;
+    background: rgba(255,255,255,0.04); border-radius: 10px;
+}
+.fx-layer-icon { font-size: 16px; }
+.fx-layer-name {
+    flex: 1; font-size: 13px; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fx-layer-mute { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px; }
+.fx-layer-mute.muted { opacity: 0.4; }
+.fx-mixer-layer input[type=range] { width: 60px; }
+.fx-layer-remove { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 12px; }
+.fx-mixer-presets { margin-top: 16px; }
+.fx-mixer-presets .fx-preset-grid { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Stats ── */
+.fx-stats-goal { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 13px; }
+.fx-stats-goal input {
+    width: 56px; padding: 4px 6px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+    color: var(--text-primary); font-size: 13px; text-align: center; font-family: inherit;
+}
+.fx-stats-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.fx-stat-card { padding: 14px; text-align: center; }
+.fx-stat-val { display: block; font-size: 24px; font-weight: 500; color: var(--accent); }
+.fx-stat-label { font-size: 11px; color: var(--text-secondary); display: block; margin-top: 2px; }
+.fx-stats-chart { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding-top: 8px; }
+.fx-chart-col {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 4px; height: 100%; justify-content: flex-end;
+}
+.fx-chart-bar {
+    width: 100%; max-width: 32px; background: rgba(124,58,237,0.3);
+    border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.4s ease;
+}
+.fx-chart-bar.today { background: var(--accent); }
+.fx-chart-label { font-size: 10px; color: var(--text-secondary); }
+
+/* ── Calendar ── */
+.fx-cal-tabs { display: flex; gap: 4px; }
+.fx-cal-tabs button {
+    padding: 6px 12px; border: none; background: rgba(255,255,255,0.05);
+    border-radius: 8px; cursor: pointer; font-size: 12px; color: var(--text-secondary);
+    font-family: inherit; transition: all 0.2s;
+}
+.fx-cal-tabs button.active { background: var(--accent); color: white; }
+.fx-cal-help { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+.fx-cal-input { display: flex; gap: 8px; }
+.fx-cal-input input {
+    flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+
+/* Planner */
+.fx-planner-grid { display: flex; flex-direction: column; gap: 1px; }
+.fx-planner-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer;
+    transition: background 0.15s;
+}
+.fx-planner-row:hover { background: rgba(255,255,255,0.05); }
+.fx-planner-row.now { background: rgba(239,68,68,0.08); border-left: 2px solid rgba(239,68,68,0.4); }
+.fx-planner-hour {
+    font-size: 11px; color: var(--text-secondary); width: 60px; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.fx-planner-block { flex: 1; font-size: 13px; color: var(--text-primary); }
+.fx-planner-del {
+    background: none; border: none; color: var(--text-secondary);
+    cursor: pointer; font-size: 10px; opacity: 0; transition: opacity 0.15s;
+}
+.fx-planner-row:hover .fx-planner-del { opacity: 1; }
+.fx-planner-edit {
+    display: none; gap: 8px; margin-top: 12px; padding: 12px;
+    background: rgba(255,255,255,0.04); border-radius: 10px;
+}
+.fx-planner-edit.visible { display: flex; }
+.fx-planner-edit input {
+    flex: 1; padding: 6px 10px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+
+/* ── Notepad ── */
+.fx-notepad-area {
+    width: 100%; min-height: 260px; padding: 14px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; color: var(--text-primary); font-size: 14px;
+    font-family: inherit; resize: vertical; outline: none; line-height: 1.6;
+    box-sizing: border-box;
+}
+.fx-notepad-area:focus { border-color: var(--accent); }
+.fx-notepad-footer {
+    display: flex; align-items: center; gap: 10px; margin-top: 10px;
+    font-size: 12px; color: var(--text-secondary);
+}
+.fx-saved { color: #4ade80; }
+
+/* ── Completion Overlay ── */
+.fx-completion {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+    background: rgba(0,0,0,0.5);
+}
+.fx-completion.visible { opacity: 1; pointer-events: auto; }
+.fx-completion-card {
+    padding: 40px 48px; text-align: center; max-width: 380px;
+    border-radius: 24px; transform: scale(0.9);
+    transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.fx-completion.visible .fx-completion-card { transform: scale(1); }
+.fx-completion-emoji { font-size: 56px; margin-bottom: 12px; }
+.fx-completion-title { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
+.fx-completion-bar {
+    height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;
+    overflow: hidden; margin-bottom: 16px;
+}
+.fx-completion-fill {
+    height: 100%; width: 0%; background: var(--accent);
+    border-radius: 2px; transition: width 3s ease;
+}
+.fx-completion-quote { font-size: 14px; color: var(--text-secondary); font-style: italic; line-height: 1.5; }
+.fx-completion-author { font-size: 12px; color: var(--accent); margin-top: 6px; }
+
+/* ── Confetti ── */
+.fx-confetti { position: fixed; inset: 0; z-index: 1000; pointer-events: none; overflow: hidden; }
+@keyframes fxConfettiFall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+.fx-confetti-particle {
+    position: absolute; top: -20px; animation: fxConfettiFall linear forwards;
+}
+
+/* ── Mode Behaviors ── */
+body.mode-ambient .fx-intent-bar { opacity: 0.4; }
+body.mode-ambient .fx-topbar { opacity: 0.5; }
+body.mode-focus .fx-topbar { opacity: 0; pointer-events: none; }
+body.mode-focus .fx-ambient-bar { opacity: 0; pointer-events: none; }
+body.mode-focus .fx-intent-bar { opacity: 0; pointer-events: none; }
+body.mode-focus .fx-timer-card { transform: scale(1.1); }
+
+/* ── Misc ── */
+.fx-hidden { display: none !important; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .fx-topbar { flex-direction: column; gap: 8px; }
+    .fx-timer-digits { font-size: 32px; }
+    .fx-timer-display { width: 160px; height: 160px; }
+    .fx-slide-panel {
+        width: 100vw; border-radius: 20px 20px 0 0;
+        top: auto; height: 85vh;
+    }
+    .fx-stats-cards { grid-template-columns: 1fr; }
+}
+
+/* ── Settings Panel ── */
+.fx-settings-tabs {
+    display: flex; gap: 2px; padding: 8px 12px 0;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.fx-settings-tabs::-webkit-scrollbar { display: none; }
+.fx-settings-tabs button {
+    flex-shrink: 0; padding: 6px 10px; border: none;
+    background: transparent; color: var(--text-secondary);
+    font-size: 11px; font-weight: 500; font-family: inherit;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.2s; text-transform: uppercase;
+    letter-spacing: 0.5px; white-space: nowrap;
+}
+.fx-settings-tabs button:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.fx-settings-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.fx-settings-section { margin-bottom: 20px; }
+.fx-settings-section h4 {
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px 0;
+}
+.fx-settings-section h4:not(:first-child) { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+.fx-setting-row {
+    display: flex; align-items: center; justify-content: space-between; padding: 8px 0; gap: 12px;
+}
+.fx-setting-label { font-size: 13px; color: var(--text-primary); flex: 1; min-width: 0; }
+.fx-setting-desc { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.fx-setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.fx-setting-control input[type="range"] { width: 100px; }
+.fx-setting-control input[type="number"],
+.fx-setting-control input[type="text"],
+.fx-setting-control select {
+    width: 64px; padding: 4px 6px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+    color: var(--text-primary); font-size: 13px; text-align: center; font-family: inherit;
+}
+.fx-setting-control select { width: auto; text-align: left; padding: 4px 8px; cursor: pointer; }
+.fx-setting-control input[type="number"]:focus,
+.fx-setting-control input[type="text"]:focus,
+.fx-setting-control select:focus { outline: none; border-color: var(--accent); }
+.fx-setting-val { font-size: 12px; color: var(--text-secondary); min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+.fx-toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+.fx-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.fx-toggle-track { position: absolute; inset: 0; background: rgba(255,255,255,0.12); border-radius: 11px; transition: background 0.25s; }
+.fx-toggle input:checked + .fx-toggle-track { background: var(--accent); }
+.fx-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+.fx-toggle input:checked ~ .fx-toggle-thumb { transform: translateX(18px); }
+.fx-settings-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.fx-settings-preset {
+    padding: 6px 12px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); border-radius: 8px;
+    cursor: pointer; font-size: 12px; color: var(--text-primary); font-family: inherit; transition: all 0.15s;
+}
+.fx-settings-preset:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+.fx-settings-preset.active { border-color: var(--accent); background: rgba(124,58,237,0.15); }
+.fx-about-block { padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-top: 8px; }
+.fx-about-block p { margin: 0 0 8px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.fx-about-block p:last-child { margin-bottom: 0; }
+.fx-about-version { font-size: 11px; color: var(--text-secondary); opacity: 0.6; }
+.fx-changelog-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.fx-changelog-item:last-child { border-bottom: none; }
+.fx-changelog-version { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+.fx-changelog-date { font-size: 11px; color: var(--text-secondary); margin-left: 8px; font-weight: 400; }
+.fx-changelog-changes { margin: 4px 0 0; padding-left: 16px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.fx-changelog-changes li { margin-bottom: 2px; }
+.fx-settings-tab-content { display: none; }
+.fx-settings-tab-content.active { display: block; }
+.fx-slide-panel.fx-panel-wide { width: 420px; }
+@media (max-width: 640px) {
+    .fx-slide-panel.fx-panel-wide { width: 100vw; }
+    .fx-settings-tabs button { padding: 6px 8px; font-size: 10px; }
+}
+
+/* ── Reader Panel ── */
+#panel-reader {
+    width: 520px; max-width: 95vw;
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), background 0.4s ease, backdrop-filter 0.4s ease;
+}
+#panel-reader.reader-focused { background: rgba(10,10,14,0.97) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.fx-reader-tabs { display: flex; gap: 2px; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 3px; margin-bottom: 14px; }
+.fx-reader-tabs button { flex: 1; padding: 7px 10px; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-secondary); font-family: inherit; transition: all 0.2s; }
+.fx-reader-tabs button:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.fx-reader-tabs button.active { background: var(--accent); color: #fff; }
+.fx-reader-upload { border: 2px dashed rgba(255,255,255,0.12); border-radius: 14px; padding: 28px 16px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+.fx-reader-upload:hover { border-color: var(--accent); background: rgba(124,58,237,0.06); }
+.fx-reader-upload-icon { font-size: 32px; margin-bottom: 8px; display: block; }
+.fx-reader-upload-text { font-size: 13px; color: var(--text-secondary); }
+.fx-reader-upload-text strong { color: var(--text-primary); }
+.fx-reader-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.fx-reader-fileinfo { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 12px; background: rgba(255,255,255,0.04); border-radius: 10px; font-size: 12px; color: var(--text-secondary); }
+.fx-reader-fileinfo-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: 500; }
+.fx-reader-fileinfo-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; }
+.fx-reader-fileinfo-close:hover { background: rgba(255,255,255,0.08); }
+.fx-reader-start { width: 100%; padding: 12px; border: none; background: var(--accent); color: #fff; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: all 0.2s; margin-bottom: 12px; }
+.fx-reader-start:hover { filter: brightness(1.15); }
+.fx-reader-start:disabled { opacity: 0.35; cursor: default; filter: none; }
+.fx-reader-pdf-wrap { flex: 1; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 12px; gap: 12px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+.fx-reader-pdf-canvas-wrap { display: flex; justify-content: center; width: 100%; overflow: auto; }
+.fx-reader-pdf-canvas-wrap canvas { max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+.fx-reader-pdf-nav { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.fx-reader-pdf-nav button { width: 36px; height: 36px; border: none; background: rgba(255,255,255,0.08); color: var(--text-primary); border-radius: 10px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.fx-reader-pdf-nav button:hover { background: rgba(255,255,255,0.15); }
+.fx-reader-pdf-nav button:disabled { opacity: 0.3; cursor: default; }
+.fx-reader-pdf-page { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; min-width: 80px; text-align: center; }
+.fx-reader-pdf-zoom { display: flex; align-items: center; gap: 4px; }
+.fx-reader-pdf-zoom button { width: 28px; height: 28px; border: none; background: rgba(255,255,255,0.06); color: var(--text-secondary); border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.fx-reader-pdf-zoom button:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+.fx-reader-pdf-zoom span { font-size: 11px; color: var(--text-secondary); min-width: 36px; text-align: center; }
+.fx-reader-rsvp-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; }
+.fx-reader-rsvp-display { font-size: 42px; font-weight: 500; color: var(--text-primary); min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; letter-spacing: -0.5px; }
+.fx-reader-rsvp-display .rsvp-orp { color: var(--accent); }
+.fx-reader-rsvp-meta { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); }
+.fx-reader-rsvp-meta span { font-variant-numeric: tabular-nums; }
+.fx-reader-rsvp-controls { display: flex; align-items: center; gap: 10px; }
+.fx-reader-rsvp-controls button { width: 40px; height: 40px; border: none; background: rgba(255,255,255,0.08); color: var(--text-primary); border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.fx-reader-rsvp-controls button:hover { background: rgba(255,255,255,0.15); }
+.fx-reader-rsvp-controls .rsvp-play-btn { width: 52px; height: 52px; font-size: 20px; background: var(--accent); }
+.fx-reader-rsvp-controls .rsvp-play-btn:hover { filter: brightness(1.15); }
+.fx-reader-rsvp-wpm { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 280px; }
+.fx-reader-rsvp-wpm label { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.fx-reader-rsvp-wpm label span { color: var(--accent); font-weight: 600; min-width: 48px; }
+.fx-reader-rsvp-wpm input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.15); outline: none; }
+.fx-reader-rsvp-wpm input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.fx-reader-rsvp-progress { width: 100%; max-width: 280px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.fx-reader-rsvp-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.2s ease; width: 0%; }
+.fx-reader-flow-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; padding: 20px 16px; }
+.fx-reader-flow-viewport { height: 240px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; width: 100%; }
+.fx-reader-flow-line { font-size: 16px; line-height: 2; color: var(--text-primary); text-align: center; padding: 2px 8px; transition: all 0.35s ease; max-width: 100%; word-wrap: break-word; }
+.fx-reader-flow-line.flow-prev { opacity: 0.15; transform: translateY(-8px); font-size: 14px; color: var(--text-secondary); }
+.fx-reader-flow-line.flow-current { font-size: 18px; font-weight: 600; color: var(--text-primary); text-shadow: 0 0 20px rgba(124,58,237,0.3); }
+.fx-reader-flow-line.flow-next { opacity: 0.3; transform: translateY(8px); font-size: 14px; color: var(--text-secondary); }
+.fx-reader-flow-line.flow-far { opacity: 0.08; font-size: 13px; color: var(--text-secondary); }
+.fx-reader-flow-controls { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.fx-reader-flow-controls button { width: 40px; height: 40px; border: none; background: rgba(255,255,255,0.08); color: var(--text-primary); border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.fx-reader-flow-controls button:hover { background: rgba(255,255,255,0.15); }
+.fx-reader-flow-controls .flow-play-btn { width: 52px; height: 52px; font-size: 20px; background: var(--accent); }
+.fx-reader-flow-controls .flow-play-btn:hover { filter: brightness(1.15); }
+.fx-reader-flow-speed { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 280px; }
+.fx-reader-flow-speed label { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.fx-reader-flow-speed label span { color: var(--accent); font-weight: 600; min-width: 32px; }
+.fx-reader-flow-speed input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.15); outline: none; }
+.fx-reader-flow-speed input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.fx-reader-flow-progress { width: 100%; max-width: 280px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.fx-reader-flow-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+.fx-reader-mode { display: none; flex-direction: column; flex: 1; min-height: 0; }
+.fx-reader-mode.active { display: flex; }
+.fx-reader-text-preview { flex: 1; overflow-y: auto; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 12px; font-size: 14px; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap; word-wrap: break-word; max-height: 400px; }
+.fx-reader-status { text-align: center; padding: 24px 16px; font-size: 13px; color: var(--text-secondary); }
+@media (max-width: 640px) {
+    #panel-reader { width: 100vw; border-radius: 20px 20px 0 0; top: auto; height: 85vh; }
+    .fx-reader-rsvp-display { font-size: 32px; }
+}
+/* ── Enhanced Stats Styles ── */
+.fx-stats-section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-secondary);
+    margin: 20px 0 10px; display: flex; align-items: center; gap: 8px;
+}
+.fx-stats-section-title:first-child { margin-top: 0; }
+.fx-stats-section-title::after {
+    content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08);
+}
+.fx-chart-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.fx-chart-tabs button {
+    padding: 5px 12px; border: none; background: rgba(255,255,255,0.05);
+    border-radius: 8px; cursor: pointer; font-size: 11px;
+    color: var(--text-secondary); font-family: inherit; transition: all 0.2s;
+}
+.fx-chart-tabs button:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.fx-chart-tabs button.active { background: var(--accent); color: #fff; }
+.fx-chart-enhanced {
+    display: flex; align-items: flex-end; gap: 6px; height: 140px;
+    padding: 8px 0; margin-bottom: 4px;
+}
+.fx-chart-enhanced .fx-chart-col {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 4px; height: 100%; justify-content: flex-end; min-width: 0;
+}
+.fx-chart-enhanced .fx-chart-bar {
+    width: 100%; max-width: 36px; background: rgba(124,58,237,0.25);
+    border-radius: 4px 4px 0 0; min-height: 2px;
+    transition: height 0.5s cubic-bezier(0.16,1,0.3,1); position: relative;
+}
+.fx-chart-enhanced .fx-chart-bar.today {
+    background: var(--accent); box-shadow: 0 0 12px rgba(124,58,237,0.4);
+}
+.fx-chart-enhanced .fx-chart-bar.has-data { cursor: pointer; }
+.fx-chart-enhanced .fx-chart-bar.has-data:hover { background: rgba(124,58,237,0.5); }
+.fx-chart-enhanced .fx-chart-bar.has-data:hover::after {
+    content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px);
+    left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85);
+    color: var(--text-primary); font-size: 10px; padding: 3px 7px;
+    border-radius: 5px; white-space: nowrap; pointer-events: none; z-index: 10;
+}
+.fx-chart-enhanced .fx-chart-label { font-size: 9px; color: var(--text-secondary); text-align: center; line-height: 1.1; }
+.fx-streaks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.fx-streak-card { padding: 14px; text-align: center; }
+.fx-streak-val {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    font-size: 28px; font-weight: 600; color: var(--accent); line-height: 1;
+}
+.fx-streak-val .fx-streak-fire { font-size: 20px; }
+.fx-streak-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: block; }
+.fx-weekly-goal-row { display: flex; align-items: center; gap: 16px; padding: 14px; margin-bottom: 6px; }
+.fx-goal-ring-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.fx-goal-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.fx-goal-ring-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 6; }
+.fx-goal-ring-fg {
+    fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.16,1,0.3,1);
+}
+.fx-goal-ring-text {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-primary);
+}
+.fx-goal-ring-info { flex: 1; min-width: 0; }
+.fx-goal-ring-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+.fx-goal-ring-sub { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+.fx-history-list {
+    display: flex; flex-direction: column; gap: 6px; max-height: 320px;
+    overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.fx-history-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: 10px; transition: background 0.15s;
+}
+.fx-history-item:hover { background: rgba(255,255,255,0.04); }
+.fx-history-mode-icon { font-size: 18px; flex-shrink: 0; width: 28px; text-align: center; }
+.fx-history-info { flex: 1; min-width: 0; }
+.fx-history-date { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+.fx-history-mode-label { font-size: 10px; color: var(--text-secondary); }
+.fx-history-dur {
+    font-size: 14px; font-weight: 500; color: var(--accent);
+    font-variant-numeric: tabular-nums; font-family: 'SF Mono', 'JetBrains Mono', monospace; flex-shrink: 0;
+}
+.fx-history-empty { text-align: center; padding: 32px 16px; color: var(--text-secondary); font-size: 13px; }
+.fx-history-empty-icon { font-size: 32px; margin-bottom: 8px; display: block; }
+.fx-total-hours { text-align: center; padding: 16px; margin-bottom: 6px; }
+.fx-total-hours-val {
+    font-size: 36px; font-weight: 300; color: var(--accent); line-height: 1;
+    font-variant-numeric: tabular-nums; font-family: 'SF Mono', 'JetBrains Mono', monospace;
+}
+.fx-total-hours-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: block; }
+.fx-total-hours-sub { font-size: 10px; color: var(--text-secondary); margin-top: 2px; opacity: 0.6; }
+@media (max-width: 380px) {
+    .fx-chart-enhanced { height: 110px; gap: 4px; }
+    .fx-streaks { grid-template-columns: 1fr; }
+    .fx-weekly-goal-row { flex-direction: column; text-align: center; }
+}
+</style>
+{% endblock %}
+
+{# ═══════════════════════════════════════════════════════════════ #}
+{#  HTML — Dashboard markup (all vanilla, no Alpine)              #}
+{# ═══════════════════════════════════════════════════════════════ #}
 {% block content %}
-<div class="dashboard-container" x-data="dashboardApp()">
-    <header class="dashboard-header">
-        <div class="logo">
-            <h1>Fixate</h1>
+<div class="fx-dashboard" id="fx-app">
+
+    <!-- ═══ TOP BAR ═══ -->
+    <header class="fx-topbar" id="fx-topbar">
+        <div class="fx-greeting">
+            <span class="fx-greeting-emoji" id="fx-greeting-emoji"></span>
+            <span class="fx-greeting-text" id="fx-greeting-text"></span>
         </div>
-        <nav>
-            <div class="quota" x-show="!isPro">
-                <span x-text="quotaUsed + '/' + quotaMax + ' uploads used'"></span>
-            </div>
-            <span class="user-email">{{ request.user.email }}</span>
-            <a href="{% url 'account_logout' %}" class="btn-secondary">Sign Out</a>
-        </nav>
+        <div class="fx-topbar-right">
+            <span class="fx-weather-chip" id="fx-weather-chip"></span>
+            <a href="https://sahajtech.dev" class="fx-branding" target="_blank" rel="noopener">fixate by <span>Sahaj Tech</span></a>
+            <button class="fx-fullscreen-btn" id="fx-fullscreen-btn" title="Fullscreen" onclick="document.documentElement.requestFullscreen()">⛶</button>
+        </div>
     </header>
-    
-    <main class="dashboard-main">
-        <section class="upload-section">
-            <div class="upload-card" @click="$refs.fileInput.click()">
-                <input type="file" 
-                       accept=".pdf" 
-                       x-ref="fileInput" 
-                       @change="handleUpload($event)"
-                       style="display: none">
-                <div class="upload-icon">+</div>
-                <p>Upload PDF</p>
+
+    <!-- ═══ HERO: CENTERED TIMER ═══ -->
+    <main class="fx-hero">
+        <div class="fx-timer-card glass-panel" id="fx-timer-card">
+            <!-- Timer mode pills -->
+            <div class="fx-timer-modes" id="fx-timer-modes">
+                <button data-tmode="pomodoro" class="active" title="Pomodoro">🍅</button>
+                <button data-tmode="countdown" title="Countdown">⏳</button>
+                <button data-tmode="stopwatch" title="Stopwatch">⏱️</button>
+                <button data-tmode="animedoro" title="Animedoro">🎌</button>
             </div>
-        </section>
-        
-        <section class="documents-section">
-            <h2>Your Library</h2>
-            
-            <div class="documents-grid">
-                <template x-for="doc in documents" :key="doc.id">
-                    <div class="document-card" 
-                         :class="{ 'processing': doc.status === 'processing', 'error': doc.status === 'error' }">
-                        <div class="doc-icon">
-                            <span x-text="doc.status === 'processing' ? '⏳' : '📄'"></span>
-                        </div>
-                        <div class="doc-info">
-                            <h3 x-text="doc.title"></h3>
-                            <p x-text="doc.status === 'ready' ? doc.word_count + ' words' : doc.status"></p>
-                            <p x-show="doc.status === 'error'" class="error-msg" x-text="doc.error"></p>
-                        </div>
-                        <div class="doc-actions">
-                            <a x-show="doc.status === 'ready'" 
-                               :href="'/api/reader/read/' + doc.id + '/'" 
-                               class="btn-primary">Read</a>
-                            <button x-show="doc.status === 'processing'" 
-                                    @click="refreshStatus(doc)"
-                                    class="btn-secondary">Refresh</button>
-                            <button @click="deleteDoc(doc)" class="btn-delete">Delete</button>
-                        </div>
-                    </div>
-                </template>
-                
-                <div x-show="documents.length === 0" class="empty-state">
-                    <p>No documents yet. Upload a PDF to get started.</p>
+
+            <!-- Ring + Time -->
+            <div class="fx-timer-display">
+                <svg class="fx-timer-ring" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="var(--glass-border)" stroke-width="3"/>
+                    <circle id="fx-ring-progress" cx="60" cy="60" r="52" fill="none"
+                            stroke="var(--accent)" stroke-width="3"
+                            stroke-dasharray="326.73 326.73" stroke-linecap="round"
+                            transform="rotate(-90 60 60)"
+                            style="transition: stroke-dasharray 0.3s ease;"/>
+                </svg>
+                <div class="fx-timer-center">
+                    <span class="fx-timer-digits" id="fx-timer-digits">25:00</span>
+                    <span class="fx-timer-label" id="fx-timer-label">🍅 Pomodoro</span>
                 </div>
             </div>
-        </section>
+
+            <!-- Controls -->
+            <div class="fx-timer-controls">
+                <button class="fx-btn fx-btn-play" id="fx-btn-play" title="Start">▶</button>
+                <button class="fx-btn fx-btn-pause fx-hidden" id="fx-btn-pause" title="Pause">⏸</button>
+                <button class="fx-btn" id="fx-btn-reset" title="Reset">↺</button>
+            </div>
+
+            <!-- Config: Pomodoro / Animedoro -->
+            <div class="fx-timer-config" id="fx-config-pomo">
+                <div class="fx-cfg-item">
+                    <span>Focus</span>
+                    <input type="number" id="fx-cfg-work" value="25" min="1" max="120">
+                    <span>m</span>
+                </div>
+                <div class="fx-cfg-item">
+                    <span>Break</span>
+                    <input type="number" id="fx-cfg-break" value="5" min="1" max="60">
+                    <span>m</span>
+                </div>
+            </div>
+            <!-- Config: Countdown -->
+            <div class="fx-timer-config fx-hidden" id="fx-config-countdown">
+                <div class="fx-cfg-item">
+                    <span>Minutes</span>
+                    <input type="number" id="fx-cfg-countdown" value="25" min="1" max="180">
+                </div>
+            </div>
+
+            <!-- Motivation -->
+            <div class="fx-motivation" id="fx-motivation"></div>
+        </div>
+
+        <!-- Quote -->
+        <div class="fx-quote" id="fx-quote">
+            <span class="fx-quote-text" id="fx-quote-text"></span>
+            <span class="fx-quote-author" id="fx-quote-author"></span>
+        </div>
     </main>
-    
-    <div x-show="uploading" class="upload-overlay">
-        <div class="upload-progress">
-            <p>Uploading and processing...</p>
-            <div class="spinner"></div>
+
+    <!-- ═══ AMBIENT BAR (bottom) ═══ -->
+    <footer class="fx-ambient-bar glass-panel" id="fx-ambient-bar">
+        <div class="fx-amb-section">
+            <button class="fx-amb-btn" data-panel="sound" title="Sound Mixer" onclick="Fixate.openPanel('sound')">🔊</button>
+            <button class="fx-amb-btn" data-panel="music" title="Music" onclick="Fixate.openPanel('music')">🎧</button>
+            <button class="fx-amb-btn" data-panel="bg" title="Background" onclick="Fixate.openPanel('bg')">🎨</button>
+            <button class="fx-amb-btn" data-panel="stats" title="Stats" onclick="Fixate.openPanel('stats')">📊</button>
+            <button class="fx-amb-btn" data-panel="reader" title="Reader" onclick="Fixate.openPanel('reader')">📖</button>
+            <button class="fx-amb-btn" data-panel="coworking" title="Coworking" onclick="Fixate.openPanel('coworking')">👥</button>
+            <button class="fx-amb-btn" data-panel="settings" title="Settings" onclick="Fixate.openPanel('settings')">⚙️</button>
+        </div>
+    </footer>
+
+    <!-- ═══ PANEL BACKDROP ═══ -->
+    <div class="fx-panel-backdrop" id="fx-panel-backdrop" onclick="Fixate.closePanel()"></div>
+
+    <!-- ═══ Sound Mixer Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-sound">
+        <div class="fx-panel-header">
+            <h3>🔊 Sound Mixer</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body">
+            <div class="fx-mixer-master">
+                <span>Master</span>
+                <input type="range" min="0" max="100" value="80" id="fx-mixer-master">
+                <span id="fx-mixer-master-val">80%</span>
+            </div>
+            <div id="fx-mixer-layers"></div>
+            <div class="fx-mixer-presets" id="fx-mixer-presets-wrap">
+                <button class="fx-btn small" id="fx-mixer-toggle-presets">+ Add Sound</button>
+                <div class="fx-preset-grid fx-hidden" id="fx-mixer-preset-grid">
+                    <button class="fx-preset-chip" data-layer-id="heavy-rain" data-vid="559a-bGMoR4" data-name="Heavy Rain & Thunder" data-icon="🌧️">🌧️ Heavy Rain</button>
+                    <button class="fx-preset-chip" data-layer-id="rain-window" data-vid="XhAhviQaxpQ" data-name="Rain on Window" data-icon="🪟">🪟 Rain Window</button>
+                    <button class="fx-preset-chip" data-layer-id="forest-thunder" data-vid="6dHRUkz-u80" data-name="Forest Thunder" data-icon="🌲">🌲 Forest Thunder</button>
+                    <button class="fx-preset-chip" data-layer-id="cave-thunder" data-vid="nTlxoFqQGNs" data-name="Cave Thunderstorm" data-icon="🕳️">🕳️ Cave Storm</button>
+                    <button class="fx-preset-chip" data-layer-id="campfire" data-vid="LF2oeyVQTi0" data-name="Campfire + Rain" data-icon="🔥">🔥 Campfire</button>
+                    <button class="fx-preset-chip" data-layer-id="3d-storm" data-vid="3QrBortNsSo" data-name="3D Rainstorm" data-icon="🎧">🎧 3D Storm</button>
+                    <button class="fx-preset-chip" data-layer-id="3d-thunder" data-vid="TiVXBJ6O9BA" data-name="3D Thunder" data-icon="🎧">🎧 3D Thunder</button>
+                    <button class="fx-preset-chip" data-layer-id="windy-rain" data-vid="yPSshiEsYh0" data-name="Windy Rain" data-icon="💨">💨 Windy Rain</button>
+                </div>
+            </div>
+            <!-- Noise Generator Section -->
+            <div class="fx-preset-divider"><span>Noise Generator</span></div>
+            <div class="fx-noise-grid" id="fx-noise-grid">
+                <div class="fx-noise-row">
+                    <button class="fx-noise-toggle" data-noise="white" id="fx-noise-btn-white">⚪ White</button>
+                    <input type="range" min="0" max="100" value="50" class="fx-noise-slider" id="fx-noise-vol-white">
+                    <span class="fx-noise-val" id="fx-noise-val-white">50%</span>
+                </div>
+                <div class="fx-noise-row">
+                    <button class="fx-noise-toggle" data-noise="pink" id="fx-noise-btn-pink">🌧️ Pink</button>
+                    <input type="range" min="0" max="100" value="50" class="fx-noise-slider" id="fx-noise-vol-pink">
+                    <span class="fx-noise-val" id="fx-noise-val-pink">50%</span>
+                </div>
+                <div class="fx-noise-row">
+                    <button class="fx-noise-toggle" data-noise="brown" id="fx-noise-btn-brown">🟤 Brown</button>
+                    <input type="range" min="0" max="100" value="50" class="fx-noise-slider" id="fx-noise-vol-brown">
+                    <span class="fx-noise-val" id="fx-noise-val-brown">50%</span>
+                </div>
+            </div>
+            <button class="fx-btn fx-btn-stop fx-hidden" id="fx-mixer-stop-all">⏹ Stop All</button>
+        </div>
+    </div>
+
+    <!-- ═══ Music (Spotify) Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-music">
+        <div class="fx-panel-header">
+            <h3>🎧 Music</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body">
+            <div class="fx-spotify-row">
+                <input type="text" id="fx-spotify-url" placeholder="Paste Spotify playlist/album/track URL...">
+                <button class="fx-btn" id="fx-spotify-load">Load</button>
+            </div>
+            <div class="fx-error fx-hidden" id="fx-spotify-error"></div>
+            <div id="fx-spotify-container" style="margin-top:16px;border-radius:16px;overflow:hidden;"></div>
+            <button class="fx-btn fx-btn-stop fx-hidden" id="fx-spotify-clear" style="margin-top:12px;">Remove</button>
+        </div>
+    </div>
+
+    <!-- ═══ Background Picker Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-bg">
+        <div class="fx-panel-header">
+            <h3>🎨 Background</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body">
+            <div class="fx-preset-grid" id="fx-bg-presets">
+                <button class="fx-bg-preset" data-bg="bali-terraces"><span class="fx-bg-preset-icon">🌴</span><span>Bali</span></button>
+                <button class="fx-bg-preset" data-bg="nyc-skyline"><span class="fx-bg-preset-icon">🌃</span><span>NYC</span></button>
+                <button class="fx-bg-preset" data-bg="tokyo-shibuya"><span class="fx-bg-preset-icon">🗼</span><span>Tokyo</span></button>
+                <button class="fx-bg-preset" data-bg="swiss-alps"><span class="fx-bg-preset-icon">🏔️</span><span>Alps</span></button>
+                <button class="fx-bg-preset" data-bg="aurora-borealis"><span class="fx-bg-preset-icon">🌌</span><span>Aurora</span></button>
+                <button class="fx-bg-preset" data-bg="tropical-beach"><span class="fx-bg-preset-icon">🏝️</span><span>Beach</span></button>
+                <button class="fx-bg-preset" data-bg="rainy-cafe"><span class="fx-bg-preset-icon">☕</span><span>Rain Cafe</span></button>
+                <button class="fx-bg-preset" data-bg="forest-stream"><span class="fx-bg-preset-icon">🌿</span><span>Forest</span></button>
+                <button class="fx-bg-preset" data-bg="olympic-national"><span class="fx-bg-preset-icon">🏞️</span><span>Olympic</span></button>
+                <button class="fx-bg-preset" data-bg="world-nature"><span class="fx-bg-preset-icon">🌍</span><span>World</span></button>
+                <button class="fx-bg-preset" data-bg="tropical-jungle"><span class="fx-bg-preset-icon">🌴</span><span>Jungle</span></button>
+                <button class="fx-bg-preset" data-bg="mountain-lake"><span class="fx-bg-preset-icon">🏔️</span><span>Lake</span></button>
+                <button class="fx-bg-preset" data-bg="ocean-waves"><span class="fx-bg-preset-icon">🌊</span><span>Ocean</span></button>
+                <button class="fx-bg-preset" data-bg="autumn-forest"><span class="fx-bg-preset-icon">🍂</span><span>Autumn</span></button>
+                <button class="fx-bg-preset" data-bg="winter-snow"><span class="fx-bg-preset-icon">❄️</span><span>Winter</span></button>
+                <button class="fx-bg-preset" data-bg="sunset-ocean"><span class="fx-bg-preset-icon">🌅</span><span>Sunset</span></button>
+                <button class="fx-bg-preset" data-bg="desert-dunes"><span class="fx-bg-preset-icon">🏜️</span><span>Desert</span></button>
+                <button class="fx-bg-preset" data-bg="lavender-fields"><span class="fx-bg-preset-icon">💜</span><span>Lavender</span></button>
+                <button class="fx-bg-preset" data-bg="cherry-blossom"><span class="fx-bg-preset-icon">🌸</span><span>Cherry</span></button>
+                <button class="fx-bg-preset" data-bg="waterfall"><span class="fx-bg-preset-icon">💧</span><span>Waterfall</span></button>
+                <button class="fx-bg-preset" data-bg="starry-night"><span class="fx-bg-preset-icon">⭐</span><span>Stars</span></button>
+                <button class="fx-bg-preset" data-bg="peaceful-landscapes"><span class="fx-bg-preset-icon">⛰️</span><span>Peaceful</span></button>
+                <button class="fx-bg-preset" data-bg="aquarium-reef"><span class="fx-bg-preset-icon">🐠</span><span>Aquarium</span></button>
+                <button class="fx-bg-preset" data-bg="mediterranean-beach"><span class="fx-bg-preset-icon">🏖️</span><span>Med Beach</span></button>
+                <button class="fx-bg-preset" data-bg="summer-colors"><span class="fx-bg-preset-icon">🌺</span><span>Summer</span></button>
+                <button class="fx-bg-preset" data-bg="nature-colors-4k"><span class="fx-bg-preset-icon">🦜</span><span>Nature</span></button>
+            </div>
+            <div class="fx-preset-divider"><span>Gradients (offline)</span></div>
+            <div class="fx-preset-grid" id="fx-bg-gradients">
+                <button class="fx-bg-preset" data-bg="gradient-sunrise">🌄 Sunrise</button>
+                <button class="fx-bg-preset" data-bg="gradient-ocean">🌊 Ocean</button>
+                <button class="fx-bg-preset" data-bg="gradient-lavender">💜 Lavender</button>
+                <button class="fx-bg-preset" data-bg="gradient-peach">🍑 Peach</button>
+                <button class="fx-bg-preset" data-bg="gradient-mint">🌿 Mint</button>
+                <button class="fx-bg-preset" data-bg="gradient-northern">🌌 Aurora</button>
+                <button class="fx-bg-preset" data-bg="gradient-sunset">🌅 Sunset</button>
+                <button class="fx-bg-preset" data-bg="gradient-forest">🌲 Forest</button>
+                <button class="fx-bg-preset" data-bg="gradient-cyberpunk">🌆 Cyber</button>
+            </div>
+            <div class="fx-url-row">
+                <input type="text" id="fx-custom-url" placeholder="Paste YouTube/Vimeo URL...">
+                <button class="fx-btn" id="fx-custom-url-set">Set</button>
+            </div>
+            <div class="fx-error fx-hidden" id="fx-bg-error"></div>
+            <div class="fx-overlay-row" style="margin-top:12px;">
+                <span>Overlay</span>
+                <input type="range" min="15" max="85" value="35" id="fx-overlay-slider">
+                <span id="fx-overlay-val">35%</span>
+            </div>
+            <button class="fx-btn fx-btn-stop fx-hidden" id="fx-bg-clear" style="margin-top:12px;">Remove Background</button>
+        </div>
+    </div>
+
+    <!-- ═══ Stats Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-stats">
+        <div class="fx-panel-header">
+            <h3>📊 Focus Stats</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body">
+            <div class="fx-stats-goal">
+                <span>Daily Goal</span>
+                <input type="number" id="fx-stats-goal-input" value="120" min="10" max="480">
+                <span>min</span>
+            </div>
+            <div class="fx-stats-cards">
+                <div class="fx-stat-card glass-panel-inner">
+                    <span class="fx-stat-val" id="fx-stat-today">0</span>
+                    <span class="fx-stat-label">min today</span>
+                </div>
+                <div class="fx-stat-card glass-panel-inner">
+                    <span class="fx-stat-val" id="fx-stat-week">0</span>
+                    <span class="fx-stat-label">min this week</span>
+                </div>
+                <div class="fx-stat-card glass-panel-inner">
+                    <span class="fx-stat-val" id="fx-stat-sessions">0</span>
+                    <span class="fx-stat-label">sessions</span>
+                </div>
+                <div class="fx-stat-card glass-panel-inner">
+                    <span class="fx-stat-val" id="fx-stat-avg">0m</span>
+                    <span class="fx-stat-label">avg length</span>
+                </div>
+            </div>
+            <!-- Streaks -->
+            <div class="fx-stats-section-title">🔥 Streaks</div>
+            <div class="fx-streaks">
+                <div class="fx-streak-card glass-panel-inner">
+                    <div class="fx-streak-val">
+                        <span id="fx-streak-current">0</span>
+                        <span class="fx-streak-fire">🔥</span>
+                    </div>
+                    <span class="fx-streak-label">Current Streak</span>
+                </div>
+                <div class="fx-streak-card glass-panel-inner">
+                    <div class="fx-streak-val">
+                        <span id="fx-streak-longest">0</span>
+                        <span class="fx-streak-fire">🏆</span>
+                    </div>
+                    <span class="fx-streak-label">Longest Streak</span>
+                </div>
+            </div>
+            <!-- Total Hours -->
+            <div class="fx-total-hours glass-panel-inner">
+                <div class="fx-total-hours-val" id="fx-total-hours">0.0</div>
+                <span class="fx-total-hours-label">Total Focus Hours</span>
+                <span class="fx-total-hours-sub" id="fx-total-sessions-sub">0 sessions</span>
+            </div>
+            <!-- Weekly Goal Ring -->
+            <div class="fx-stats-section-title">🎯 Weekly Goal</div>
+            <div class="fx-weekly-goal-row glass-panel-inner">
+                <div class="fx-goal-ring-wrap">
+                    <svg viewBox="0 0 80 80">
+                        <circle class="fx-goal-ring-bg" cx="40" cy="40" r="34"/>
+                        <circle class="fx-goal-ring-fg" id="fx-goal-ring-circle" cx="40" cy="40" r="34"
+                            stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
+                    </svg>
+                    <div class="fx-goal-ring-text" id="fx-goal-ring-pct">0%</div>
+                </div>
+                <div class="fx-goal-ring-info">
+                    <div class="fx-goal-ring-title" id="fx-goal-ring-title">0 / 14h this week</div>
+                    <div class="fx-goal-ring-sub" id="fx-goal-ring-sub">Set your weekly goal below</div>
+                </div>
+            </div>
+            <div class="fx-stats-goal" style="margin-top:8px;">
+                <span>Weekly Goal</span>
+                <input type="number" id="fx-stats-weekly-goal-input" value="840" min="60" max="3360">
+                <span>min</span>
+            </div>
+            <!-- Focus Time Charts -->
+            <div class="fx-stats-section-title">📈 Focus Time</div>
+            <div class="fx-chart-tabs" id="fx-chart-tabs">
+                <button data-range="daily" class="active">Daily</button>
+                <button data-range="weekly">Weekly</button>
+                <button data-range="monthly">Monthly</button>
+            </div>
+            <div class="fx-chart-enhanced" id="fx-chart-enhanced"></div>
+            <!-- Session History -->
+            <div class="fx-stats-section-title">📋 Recent Sessions</div>
+            <div class="fx-history-list" id="fx-history-list">
+                <div class="fx-history-empty">
+                    <span class="fx-history-empty-icon">🎯</span>
+                    No focus sessions yet.<br>Start a timer to begin tracking!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Calendar Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-calendar">
+        <div class="fx-panel-header">
+            <div class="fx-cal-tabs" id="fx-cal-tabs">
+                <button data-caltab="google" class="active">Google</button>
+                <button data-caltab="outlook">Outlook</button>
+                <button data-caltab="planner">Planner</button>
+            </div>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body">
+            <!-- Google Calendar -->
+            <div id="fx-cal-google">
+                <p class="fx-cal-help">Paste your Google Calendar embed URL or public Calendar ID.</p>
+                <div class="fx-cal-input">
+                    <input type="text" id="fx-google-url" placeholder="Embed URL or Calendar ID...">
+                    <button class="fx-btn" id="fx-google-save">Save</button>
+                </div>
+                <div class="fx-hidden" id="fx-google-active" style="margin-top:16px;">
+                    <iframe id="fx-google-iframe" style="width:100%;height:420px;border:none;border-radius:12px;" frameborder="0"></iframe>
+                    <button class="fx-btn fx-btn-stop" id="fx-google-remove" style="margin-top:8px;">Remove</button>
+                </div>
+            </div>
+            <!-- Outlook Calendar -->
+            <div id="fx-cal-outlook" class="fx-hidden">
+                <p class="fx-cal-help">Paste your Outlook Calendar embed URL or ICS link.</p>
+                <div class="fx-cal-input">
+                    <input type="text" id="fx-outlook-url" placeholder="Embed URL or ICS link...">
+                    <button class="fx-btn" id="fx-outlook-save">Save</button>
+                </div>
+                <div class="fx-hidden" id="fx-outlook-active" style="margin-top:16px;">
+                    <iframe id="fx-outlook-iframe" style="width:100%;height:420px;border:none;border-radius:12px;" frameborder="0"></iframe>
+                    <button class="fx-btn fx-btn-stop" id="fx-outlook-remove" style="margin-top:8px;">Remove</button>
+                </div>
+            </div>
+            <!-- Daily Planner -->
+            <div id="fx-cal-planner" class="fx-hidden">
+                <div class="fx-planner-grid" id="fx-planner-grid"></div>
+                <div class="fx-planner-edit" id="fx-planner-edit">
+                    <input type="text" id="fx-planner-edit-input" placeholder="What's happening?">
+                    <button class="fx-btn" id="fx-planner-save">Save</button>
+                    <button class="fx-btn" id="fx-planner-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Notepad Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-notes">
+        <div class="fx-panel-header">
+            <h3>📝 Notepad</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body">
+            <textarea class="fx-notepad-area" id="fx-notepad" placeholder="Quick notes, thoughts, ideas..."></textarea>
+            <div class="fx-notepad-footer">
+                <span id="fx-notes-words">0 words</span>
+                <span id="fx-notes-chars" class="fx-hidden"></span>
+                <button class="fx-btn small" id="fx-notes-chars-toggle">Aa</button>
+                <span class="fx-saved fx-hidden" id="fx-notes-saved">Saved ✓</span>
+                <button class="fx-btn small" id="fx-notes-clear" style="margin-left:auto;">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Reader Panel ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-reader">
+        <div class="fx-panel-header">
+            <h3>📖 Reader</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body" style="display:flex;flex-direction:column;padding:16px;gap:12px;height:100%;">
+            <div class="fx-reader-tabs" id="fx-reader-tabs">
+                <button data-rmode="normal" class="active">📄 Normal</button>
+                <button data-rmode="rsvp">⚡ RSVP</button>
+                <button data-rmode="flow">🌊 Flow</button>
+            </div>
+            <div class="fx-reader-upload" id="fx-reader-upload">
+                <span class="fx-reader-upload-icon">📁</span>
+                <div class="fx-reader-upload-text">
+                    <strong>Drop a file</strong> or click to browse<br>
+                    <span style="font-size:11px;opacity:0.6;">.pdf · .txt · .html · .epub</span>
+                </div>
+                <input type="file" id="fx-reader-file-input" accept=".pdf,.txt,.html,.htm,.epub">
+            </div>
+            <div class="fx-reader-fileinfo fx-hidden" id="fx-reader-fileinfo">
+                <span>📎</span>
+                <span class="fx-reader-fileinfo-name" id="fx-reader-filename"></span>
+                <span id="fx-reader-filesize" style="font-size:11px;"></span>
+                <button class="fx-reader-fileinfo-close" id="fx-reader-file-close" title="Close file">✕</button>
+            </div>
+            <button class="fx-reader-start fx-hidden" id="fx-reader-start">▶ Start Reading</button>
+            <div class="fx-reader-mode active" id="fx-reader-mode-normal">
+                <div class="fx-reader-pdf-wrap" id="fx-reader-pdf-wrap">
+                    <div class="fx-reader-status" id="fx-reader-pdf-status">Upload a PDF to begin reading</div>
+                    <div class="fx-reader-pdf-canvas-wrap fx-hidden" id="fx-reader-pdf-canvas-wrap">
+                        <canvas id="fx-reader-pdf-canvas"></canvas>
+                    </div>
+                </div>
+                <div class="fx-reader-pdf-nav fx-hidden" id="fx-reader-pdf-nav">
+                    <button id="fx-reader-pdf-prev" title="Previous page">◀</button>
+                    <span class="fx-reader-pdf-page" id="fx-reader-pdf-page">1 / 1</span>
+                    <button id="fx-reader-pdf-next" title="Next page">▶</button>
+                    <div style="flex:1;"></div>
+                    <div class="fx-reader-pdf-zoom">
+                        <button id="fx-reader-pdf-zoom-out" title="Zoom out">−</button>
+                        <span id="fx-reader-pdf-zoom-val">100%</span>
+                        <button id="fx-reader-pdf-zoom-in" title="Zoom in">+</button>
+                    </div>
+                </div>
+            </div>
+            <div class="fx-reader-mode" id="fx-reader-mode-rsvp">
+                <div class="fx-reader-rsvp-wrap">
+                    <div class="fx-reader-rsvp-display" id="fx-reader-rsvp-display">
+                        <span style="font-size:14px;color:var(--text-secondary);">Upload a file to begin</span>
+                    </div>
+                    <div class="fx-reader-rsvp-progress"><div class="fx-reader-rsvp-progress-bar" id="fx-reader-rsvp-progress-bar"></div></div>
+                    <div class="fx-reader-rsvp-meta">
+                        <span id="fx-reader-rsvp-words">0 / 0 words</span><span>·</span><span id="fx-reader-rsvp-time">0:00 left</span>
+                    </div>
+                    <div class="fx-reader-rsvp-controls">
+                        <button id="fx-reader-rsvp-rewind" title="Rewind 10 words">⏪</button>
+                        <button class="rsvp-play-btn" id="fx-reader-rsvp-play" title="Play / Pause">▶</button>
+                        <button id="fx-reader-rsvp-forward" title="Forward 10 words">⏩</button>
+                    </div>
+                    <div class="fx-reader-rsvp-wpm">
+                        <label>Speed <span id="fx-reader-rsvp-wpm-val">300 WPM</span></label>
+                        <input type="range" id="fx-reader-rsvp-wpm" min="100" max="900" value="300" step="25">
+                    </div>
+                </div>
+            </div>
+            <div class="fx-reader-mode" id="fx-reader-mode-flow">
+                <div class="fx-reader-flow-wrap">
+                    <div class="fx-reader-flow-viewport" id="fx-reader-flow-viewport">
+                        <div class="fx-reader-status" id="fx-reader-flow-status">Upload a file to begin</div>
+                    </div>
+                    <div class="fx-reader-flow-progress"><div class="fx-reader-flow-progress-bar" id="fx-reader-flow-progress-bar"></div></div>
+                    <div class="fx-reader-flow-controls">
+                        <button id="fx-reader-flow-rewind" title="Previous line">⏪</button>
+                        <button class="flow-play-btn" id="fx-reader-flow-play" title="Play / Pause">▶</button>
+                        <button id="fx-reader-flow-forward" title="Next line">⏩</button>
+                    </div>
+                    <div class="fx-reader-flow-speed">
+                        <label>Speed <span id="fx-reader-flow-speed-val">4.0s</span></label>
+                        <input type="range" id="fx-reader-flow-speed" min="1" max="12" value="4" step="0.5">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Coworking Panel (placeholder — sub-agent building) ═══ -->
+    <div class="fx-slide-panel glass-panel" id="panel-coworking">
+        <div class="fx-panel-header">
+            <h3>👥 Coworking</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-panel-body" id="fx-coworking-body">
+            <div id="fx-coworking-join">
+                <div class="fx-cw-row">
+                    <input type="text" id="fx-cw-room" placeholder="Room name..." value="focus-room" style="flex:1;">
+                    <input type="text" id="fx-cw-name" placeholder="Your name..." value="anon" style="flex:1;">
+                    <button class="fx-btn" id="fx-cw-join-btn">Join</button>
+                </div>
+            </div>
+            <div id="fx-coworking-active" class="fx-hidden">
+                <div class="fx-cw-room-bar">
+                    <span id="fx-cw-room-name">focus-room</span>
+                    <span id="fx-cw-member-count" style="color:var(--text-secondary);font-size:12px;">0 online</span>
+                </div>
+                <div class="fx-cw-presence" id="fx-cw-presence"></div>
+                <div class="fx-cw-chat" id="fx-cw-chat"></div>
+                <div class="fx-cw-input-row">
+                    <input type="text" id="fx-cw-chat-input" placeholder="Type a message..." style="flex:1;">
+                    <button class="fx-btn" id="fx-cw-send-btn">Send</button>
+                </div>
+                <div class="fx-cw-timer" id="fx-cw-timer" style="text-align:center;padding:8px;color:var(--text-secondary);font-size:12px;">
+                    No active timer
+                </div>
+                <button class="fx-btn fx-btn-stop" id="fx-cw-leave-btn" style="margin-top:8px;">Leave Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ COMPLETION OVERLAY ═══ -->
+    <!-- ═══ Settings Panel ═══ -->
+    <div class="fx-slide-panel glass-panel fx-panel-wide" id="panel-settings">
+        <div class="fx-panel-header">
+            <h3>⚙️ Settings</h3>
+            <button class="fx-panel-close" onclick="Fixate.closePanel()">✕</button>
+        </div>
+        <div class="fx-settings-tabs" id="fx-settings-tabs">
+            <button data-stab="general" class="active">General</button>
+            <button data-stab="timer">Timer</button>
+            <button data-stab="sounds">Sounds</button>
+            <button data-stab="themes">Themes</button>
+            <button data-stab="reader">Reader</button>
+            <button data-stab="quotes">Quotes</button>
+            <button data-stab="extras">Extras</button>
+        </div>
+        <div class="fx-panel-body" id="fx-settings-body">
+            <!-- ── GENERAL TAB ── -->
+            <div class="fx-settings-tab-content active" data-stab-content="general">
+                <div class="fx-settings-section">
+                    <h4>Frost</h4>
+                    <div class="fx-setting-row">
+                        <div class="fx-setting-label">Panel Opacity<div class="fx-setting-desc">Controls glass frost on all panels</div></div>
+                        <div class="fx-setting-control">
+                            <input type="range" min="15" max="90" value="45" id="fx-set-frost">
+                            <span class="fx-setting-val" id="fx-set-frost-val">45%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Visibility</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Greeting</div><label class="fx-toggle"><input type="checkbox" id="fx-set-show-greeting" checked><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Quote</div><label class="fx-toggle"><input type="checkbox" id="fx-set-show-quote" checked><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Clock</div><label class="fx-toggle"><input type="checkbox" id="fx-set-show-clock" checked><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Timer</div><label class="fx-toggle"><input type="checkbox" id="fx-set-show-timer" checked><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Dock (bottom bar)</div><label class="fx-toggle"><input type="checkbox" id="fx-set-show-dock" checked><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                </div>
+            </div>
+            <!-- ── TIMER TAB ── -->
+            <div class="fx-settings-tab-content" data-stab-content="timer">
+                <div class="fx-settings-section">
+                    <h4>Pomodoro</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Focus minutes</div><div class="fx-setting-control"><input type="number" min="1" max="120" value="25" id="fx-set-timer-focus"><span class="fx-setting-val">min</span></div></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Short break</div><div class="fx-setting-control"><input type="number" min="1" max="30" value="5" id="fx-set-timer-short"><span class="fx-setting-val">min</span></div></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Long break</div><div class="fx-setting-control"><input type="number" min="1" max="60" value="15" id="fx-set-timer-long"><span class="fx-setting-val">min</span></div></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Cycles before long break</div><div class="fx-setting-control"><input type="number" min="1" max="10" value="4" id="fx-set-timer-cycles"></div></div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Presets</h4>
+                    <div class="fx-settings-presets" id="fx-timer-presets">
+                        <button class="fx-settings-preset active" data-preset="pomodoro">🍅 25/5 Pomodoro</button>
+                        <button class="fx-settings-preset" data-preset="deepwork">🧠 45/15 Deep Work</button>
+                        <button class="fx-settings-preset" data-preset="custom">✏️ Custom</button>
+                    </div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Sound</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Timer alarm sound</div><label class="fx-toggle"><input type="checkbox" id="fx-set-timer-sound" checked><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                </div>
+            </div>
+            <!-- ── SOUNDS TAB ── -->
+            <div class="fx-settings-tab-content" data-stab-content="sounds">
+                <div class="fx-settings-section">
+                    <h4>Volume</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Master volume</div><div class="fx-setting-control"><input type="range" min="0" max="100" value="80" id="fx-set-master-vol"><span class="fx-setting-val" id="fx-set-master-vol-val">80%</span></div></div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Noise Generator</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">White noise</div><label class="fx-toggle"><input type="checkbox" id="fx-set-noise-white"><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Brown noise</div><label class="fx-toggle"><input type="checkbox" id="fx-set-noise-brown"><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Pink noise</div><label class="fx-toggle"><input type="checkbox" id="fx-set-noise-pink"><span class="fx-toggle-track"></span><span class="fx-toggle-thumb"></span></label></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Default noise type<div class="fx-setting-desc">Used when noise is enabled from the dock</div></div><div class="fx-setting-control"><select id="fx-set-noise-default"><option value="white">White</option><option value="brown">Brown</option><option value="pink">Pink</option></select></div></div>
+                </div>
+            </div>
+            <!-- ── THEMES TAB ── -->
+            <div class="fx-settings-tab-content" data-stab-content="themes">
+                <div class="fx-settings-section">
+                    <h4>Current Theme</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label" id="fx-set-theme-name">Default Dark</div><button class="fx-btn small" id="fx-set-open-bg-panel">🎨 Change</button></div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Background</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label" id="fx-set-bg-name">None</div><button class="fx-btn small" id="fx-set-open-bg-panel2">🖼️ Pick</button></div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Accent Color</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Accent</div><div class="fx-setting-control"><input type="color" id="fx-set-accent-color" value="#7c3aed" style="width:32px;height:24px;border:none;background:none;cursor:pointer;"></div></div>
+                </div>
+            </div>
+            <!-- ── READER TAB ── -->
+            <div class="fx-settings-tab-content" data-stab-content="reader">
+                <div class="fx-settings-section">
+                    <h4>Reading Mode</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Default mode<div class="fx-setting-desc">RSVP shows one word at a time; Flow highlights phrases</div></div><div class="fx-setting-control"><select id="fx-set-reader-mode"><option value="normal">Normal</option><option value="rsvp">RSVP</option><option value="flow">Flow</option></select></div></div>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Default WPM</div><div class="fx-setting-control"><input type="number" min="100" max="1200" value="300" step="25" id="fx-set-reader-wpm"><span class="fx-setting-val">wpm</span></div></div>
+                </div>
+            </div>
+            <!-- ── QUOTES TAB ── -->
+            <div class="fx-settings-tab-content" data-stab-content="quotes">
+                <div class="fx-settings-section">
+                    <h4>Quote Source</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Category</div><div class="fx-setting-control"><select id="fx-set-quote-category"><option value="all">All</option><option value="gratitude">Gratitude</option><option value="motivational">Motivational</option><option value="selfhelp">Self-Help</option><option value="gshitdone">Getting Shit Done</option></select></div></div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Refresh</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Quote refresh interval</div><div class="fx-setting-control"><select id="fx-set-quote-interval"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></div></div>
+                </div>
+            </div>
+            <!-- ── EXTRAS TAB ── -->
+            <div class="fx-settings-tab-content" data-stab-content="extras">
+                <div class="fx-settings-section">
+                    <h4>What's New</h4>
+                    <div class="fx-changelog-item">
+                        <div class="fx-changelog-version">v1.0.0 <span class="fx-changelog-date">July 2026</span></div>
+                        <ul class="fx-changelog-changes">
+                            <li>Unified Settings panel with all controls in one place</li>
+                            <li>Focus timer with Pomodoro, Countdown, and Stopwatch modes</li>
+                            <li>Ambient sound mixer with YouTube audio layers</li>
+                            <li>Video background scenes and gradient presets</li>
+                            <li>Daily planner with time-block scheduling</li>
+                            <li>Quick notepad with auto-save</li>
+                            <li>Focus stats with daily goals and session tracking</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>About</h4>
+                    <div class="fx-about-block">
+                        <p><strong>Fixate</strong> is an ambient focus dashboard designed for people with ADHD and anyone who needs deep work environments.</p>
+                        <p>Built with zero dependencies — pure vanilla HTML, CSS, and JavaScript.</p>
+                        <p class="fx-about-version">Version 1.0.0 • Made with 💜</p>
+                    </div>
+                </div>
+                <div class="fx-settings-section">
+                    <h4>Reset</h4>
+                    <div class="fx-setting-row"><div class="fx-setting-label">Reset all settings<div class="fx-setting-desc">Restore everything to defaults</div></div><button class="fx-btn small fx-btn-stop" id="fx-set-reset-all">Reset</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fx-completion" id="fx-completion">
+        <div class="fx-completion-card glass-panel">
+            <div class="fx-completion-emoji">🎉</div>
+            <div class="fx-completion-title">Session Complete!</div>
+            <div class="fx-completion-bar"><div class="fx-completion-fill" id="fx-completion-fill"></div></div>
+            <p class="fx-completion-quote" id="fx-completion-quote"></p>
+            <p class="fx-completion-author" id="fx-completion-author"></p>
         </div>
     </div>
 </div>
 
+<!-- Hidden mixer player container -->
+<div id="mixer-player-container" style="display:none;"></div>
+{% endblock %}
+
+{# ═══════════════════════════════════════════════════════════════ #}
+{#  JS — All vanilla, no Alpine, no frameworks                    #}
+{# ═══════════════════════════════════════════════════════════════ #}
+{% block extra_js %}
 <script>
-function dashboardApp() {
-    return {
-        documents: [],
-        quotaUsed: {{ quota_used }},
-        quotaMax: {{ quota_max|default:'null' }},
-        isPro: {{ is_pro|yesno:"true,false" }},
-        uploading: false,
-        
-        init() {
-            this.loadDocuments();
-        },
-        
-        async loadDocuments() {
-            const response = await fetch('/api/documents/', {
-                headers: {
-                    'X-CSRFToken': this.getCsrfToken()
-                }
-            });
-            const data = await response.json();
-            this.documents = data;
-        },
-        
-        async handleUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            if (!this.isPro && this.quotaUsed >= this.quotaMax) {
-                alert('You have reached your upload limit. Upgrade to Pro for unlimited uploads.');
-                return;
-            }
-            
-            this.uploading = true;
-            
-            try {
-                const uploadResponse = await fetch('/api/documents/upload/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken()
-                    },
-                    body: JSON.stringify({
-                        filename: file.name,
-                        file_size: file.size
-                    })
+/* ═══════════════════════════════════════════
+   YouTube IFrame API — Sound Mixer Backend
+   ═══════════════════════════════════════════ */
+(function() {
+    var _mixerPlayers = {};
+    var _ytReady = false;
+    var _pending = [];
+    window._mixerStore = {
+        create: function(containerId, videoId, layerId, volume) {
+            var doCreate = function() {
+                var el = document.getElementById(containerId);
+                if (!el) return;
+                _mixerPlayers[layerId] = new YT.Player(containerId, {
+                    videoId: videoId, width: 1, height: 1,
+                    playerVars: { autoplay: 1, controls: 0, loop: 1, playlist: videoId, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1 },
+                    events: { onReady: function(e) { e.target.setVolume(volume); e.target.playVideo(); } }
                 });
-                
-                const uploadData = await uploadResponse.json();
-                
-                if (!uploadResponse.ok) {
-                    throw new Error(uploadData.error || 'Upload failed');
-                }
-                
-                const s3Response = await fetch(uploadData.upload_url, {
-                    method: 'PUT',
-                    body: file,
-                    headers: {
-                        'Content-Type': 'application/pdf'
-                    }
-                });
-                
-                if (!s3Response.ok) {
-                    throw new Error('Failed to upload file to storage');
-                }
-                
-                await fetch(`/api/documents/upload/${uploadData.document_id}/confirm/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': this.getCsrfToken()
-                    }
-                });
-                
-                this.documents.unshift({
-                    id: uploadData.document_id,
-                    title: file.name.replace('.pdf', ''),
-                    status: 'processing',
-                    word_count: 0
-                });
-                
-                this.quotaUsed++;
-                
-                this.pollStatus(uploadData.document_id);
-                
-            } catch (error) {
-                alert(error.message);
-            } finally {
-                this.uploading = false;
-                event.target.value = '';
-            }
-        },
-        
-        async pollStatus(documentId) {
-            const poll = async () => {
-                const response = await fetch(`/api/documents/${documentId}/status/`);
-                const data = await response.json();
-                
-                const doc = this.documents.find(d => d.id === documentId);
-                if (doc) {
-                    doc.status = data.status;
-                    doc.word_count = data.word_count;
-                    if (data.error_message) {
-                        doc.error = data.error_message;
-                    }
-                }
-                
-                if (data.status === 'processing') {
-                    setTimeout(poll, 3000);
-                }
             };
-            
-            setTimeout(poll, 2000);
+            if (_ytReady) doCreate();
+            else _pending.push(doCreate);
         },
-        
-        async refreshStatus(doc) {
-            const response = await fetch(`/api/documents/${doc.id}/status/`);
-            const data = await response.json();
-            doc.status = data.status;
-            doc.word_count = data.word_count;
-            if (data.error_message) {
-                doc.error = data.error_message;
-            }
+        destroy: function(layerId) {
+            var p = _mixerPlayers[layerId];
+            if (p) { try { p.destroy(); } catch(e) {} delete _mixerPlayers[layerId]; }
         },
-        
-        async deleteDoc(doc) {
-            if (!confirm('Delete this document?')) return;
-            
-            await fetch(`/api/documents/${doc.id}/`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': this.getCsrfToken()
-                }
-            });
-            
-            this.documents = this.documents.filter(d => d.id !== doc.id);
+        setVolume: function(layerId, vol) {
+            var p = _mixerPlayers[layerId];
+            if (p && p.setVolume) { try { p.setVolume(vol); } catch(e) {} }
         },
-        
-        getCsrfToken() {
-            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-        }
-    }
-}
+        isReady: function() { return _ytReady; }
+    };
+    window.onYouTubeIframeAPIReady = function() {
+        _ytReady = true;
+        _pending.forEach(function(fn) { fn(); });
+        _pending = [];
+    };
+    var tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+})();
 </script>
 
-<style>
-.dashboard-container {
-    min-height: 100vh;
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   FIXATE DASHBOARD — 100% Vanilla JS
+   ═══════════════════════════════════════════════════════════════ */
+(function() {
+'use strict';
+
+/* ── Helpers ── */
+function $(sel, ctx) { return (ctx || document).querySelector(sel); }
+function $$(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
+function show(el) { el && el.classList.remove('fx-hidden'); }
+function hide(el) { el && el.classList.add('fx-hidden'); }
+function toggle(el, cls) { el && el.classList.toggle(cls); }
+
+/* ── Video Presets (mirrors video-background.js) ── */
+var VIDEO_PRESETS = {
+    // 4K Relaxation Channel
+    'bali-terraces':     { videoId: 'lzjruXO0Fvc', platform: 'youtube', name: 'Bali Rice Terraces', icon: '🌴' },
+    'nyc-skyline':       { videoId: 'BbPiuO8NAdE', platform: 'youtube', name: 'NYC Skyline Night', icon: '🌃' },
+    'tokyo-shibuya':     { videoId: '0nTO4zSEpOs', platform: 'youtube', name: 'Tokyo Shibuya Night', icon: '🗼' },
+    'swiss-alps':        { videoId: 'BTMjD7_evjE', platform: 'youtube', name: 'Swiss Alps', icon: '🏔️' },
+    'aurora-borealis':   { videoId: 'v5RGH0SmKJY', platform: 'youtube', name: 'Northern Lights', icon: '🌌' },
+    'tropical-beach':    { videoId: 'dEep6DAv_xs', platform: 'youtube', name: 'Tropical Beach', icon: '🏝️' },
+    'rainy-cafe':        { videoId: 'bWGQTlopoEY', platform: 'youtube', name: 'Rainy Cafe', icon: '☕' },
+    'forest-stream':     { videoId: '3PZ65s2qLTE', platform: 'youtube', name: 'Forest Stream', icon: '🌿' },
+    'olympic-national':  { videoId: 'ftBAUhvINfs', platform: 'youtube', name: 'Olympic National Park', icon: '🏞️' },
+    'world-nature':      { videoId: 'nHLQAdclFF4', platform: 'youtube', name: 'World Nature 4K', icon: '🌍' },
+    'tropical-jungle':   { videoId: '01j3Ze5jF68', platform: 'youtube', name: 'Tropical Jungle', icon: '🌴' },
+    'mountain-lake':     { videoId: '2-cpbeShips', platform: 'youtube', name: 'Mountain Lake', icon: '🏔️' },
+    'ocean-waves':       { videoId: '3lQMB1EIWLY', platform: 'youtube', name: 'Ocean Waves', icon: '🌊' },
+    'autumn-forest':     { videoId: '7FR64D2giII', platform: 'youtube', name: 'Autumn Forest', icon: '🍂' },
+    'winter-snow':       { videoId: '7OKjZ9lnrZU', platform: 'youtube', name: 'Winter Snowfall', icon: '❄️' },
+    'sunset-ocean':      { videoId: 'B34f8CIwkDo', platform: 'youtube', name: 'Sunset Over Ocean', icon: '🌅' },
+    'desert-dunes':      { videoId: 'D8oa_hhLB-o', platform: 'youtube', name: 'Desert Dunes', icon: '🏜️' },
+    'lavender-fields':   { videoId: 'FUoPk4d3r3w', platform: 'youtube', name: 'Lavender Fields', icon: '💜' },
+    'cherry-blossom':    { videoId: 'JNtakcRo5vQ', platform: 'youtube', name: 'Cherry Blossoms', icon: '🌸' },
+    'waterfall':         { videoId: 'LksIRghCyR8', platform: 'youtube', name: 'Waterfall', icon: '💧' },
+    'starry-night':      { videoId: 'NYHKXGEsMK4', platform: 'youtube', name: 'Starry Night Sky', icon: '⭐' },
+    // Nature Relaxation Films
+    'peaceful-landscapes': { videoId: 'vKTxIUqHyRI', platform: 'youtube', name: 'Peaceful Landscapes', icon: '⛰️' },
+    // Balu Relaxing Nature
+    'aquarium-reef':     { videoId: '6BLYlfNl6kc', platform: 'youtube', name: 'Coral Reef Aquarium', icon: '🐠' },
+    'mediterranean-beach': { videoId: 'CdBZ0XBZVvY', platform: 'youtube', name: 'Mediterranean Beach', icon: '🏖️' },
+    'summer-colors':     { videoId: 'zvWdSoT9Cv0', platform: 'youtube', name: 'Summer Colors', icon: '🌺' },
+    'nature-colors-4k':  { videoId: 'Pdk7AGs6jnQ', platform: 'youtube', name: 'Nature Colors 4K HDR', icon: '🦜' },
+};
+var GRADIENT_PRESETS = [
+    'gradient-northern','gradient-ocean','gradient-sunset','gradient-forest','gradient-cyberpunk',
+    'gradient-sunrise','gradient-lavender','gradient-peach','gradient-mint'
+];
+
+/* ── Quotes ── */
+var QUOTES = [
+    {t:"The successful warrior is the average man, with laser-like focus.",a:"Bruce Lee"},
+    {t:"You can do anything, but not everything.",a:"David Allen"},
+    {t:"What you do today can improve all your tomorrows.",a:"Ralph Marston"},
+    {t:"Focus is a matter of deciding what things you're not going to do.",a:"John Carmack"},
+    {t:"The shorter way to do many things is to only do one thing at a time.",a:"Mozart"},
+    {t:"Most of what we say and do is not essential.",a:"Marcus Aurelius"},
+    {t:"You don't have a motivation problem. You have a starting problem.",a:"Dr. Russell Barkley"},
+    {t:"Your brain isn't broken. It's a Ferrari engine with bicycle brakes.",a:"Dr. Edward Hallowell"},
+    {t:"Done is better than perfect.",a:"Sheryl Sandberg"},
+    {t:"You're not lazy. You're understimulated.",a:"ADHD wisdom"},
+    {t:"It does not matter how slowly you go as long as you do not stop.",a:"Confucius"},
+    {t:"Fall seven times, stand up eight.",a:"Japanese proverb"},
+    {t:"I'm not procrastinating. I'm doing background processing.",a:"Every developer ever"},
+    {t:"The best time to plant a tree was 20 years ago. The second best time is now.",a:"Chinese proverb"},
+    {t:"The only way to do great work is to love what you do.",a:"Steve Jobs"},
+    {t:"First, solve the problem. Then, write the code.",a:"John Johnson"}
+];
+
+/* ═══════════════════════════════
+   GREETING
+   ═══════════════════════════════ */
+function initGreeting() {
+    var h = new Date().getHours();
+    var emoji, text;
+    if (h < 5)       { emoji = '🌙'; text = 'Good night'; }
+    else if (h < 12) { emoji = '☀️'; text = 'Good morning'; }
+    else if (h < 17) { emoji = '🌤️'; text = 'Good afternoon'; }
+    else if (h < 21) { emoji = '🌅'; text = 'Good evening'; }
+    else              { emoji = '🌙'; text = 'Good night'; }
+    $('#fx-greeting-emoji').textContent = emoji;
+    $('#fx-greeting-text').textContent = text;
+    // Quote rotation
+    rotateQuote();
+    setInterval(rotateQuote, 30 * 60 * 1000);
 }
 
-.dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 40px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
+function rotateQuote() {
+    var q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+    var textEl = $('#fx-quote-text');
+    var authEl = $('#fx-quote-author');
+    if (textEl) textEl.textContent = '\u201c' + q.t + '\u201d';
+    if (authEl) authEl.textContent = '\u2014 ' + q.a;
 }
 
-.dashboard-header .logo h1 {
-    font-size: 24px;
-    color: var(--accent);
+/* ═══════════════════════════════
+   MODE SWITCHING
+   ═══════════════════════════════ */
+var currentMode = 'home';
+
+function setMode(m) {
+    currentMode = m;
+    document.body.classList.remove('mode-ambient', 'mode-focus');
+    if (m !== 'home') document.body.classList.add('mode-' + m);
+    // Update pill buttons
+    $$('#fx-mode-pills button').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === m);
+    });
+    // Adjust overlay
+    var overlay = document.getElementById('video-bg-overlay');
+    if (overlay) overlay.style.background = m === 'focus' ? 'rgba(8,8,10,0.15)' : 'rgba(8,8,10,0.35)';
 }
 
-.dashboard-header nav {
-    display: flex;
-    align-items: center;
-    gap: 20px;
+/* ═══════════════════════════════
+   TRANSPARENCY
+   ═══════════════════════════════ */
+function initTransparency() {
+    var slider = $('#fx-transparency-slider');
+    var saved = parseInt(localStorage.getItem('fixate-glass-transparency') || '45');
+    slider.value = saved;
+    applyTransparency(saved);
+    slider.addEventListener('input', function() {
+        applyTransparency(parseInt(this.value));
+    });
 }
 
-.quota {
-    font-size: 13px;
-    color: var(--text-secondary);
+function applyTransparency(val) {
+    document.documentElement.style.setProperty('--glass-alpha', (val / 100).toFixed(2));
+    localStorage.setItem('fixate-glass-transparency', String(val));
 }
 
-.user-email {
-    font-size: 14px;
-    color: var(--text-secondary);
-}
+/* ═══════════════════════════════
+   FOCUS TIMER
+   ═══════════════════════════════ */
+var timer = {
+    mode: 'pomodoro',       // pomodoro | countdown | stopwatch | animedoro
+    running: false,
+    isBreak: false,
+    _iv: null,
+    _endTime: 0,
+    _elapsed: 0,            // for stopwatch (ms)
+    _totalDur: 0,
+    _startTime: 0,
+    _m50: false,
+    _m75: false,
+    cfg: {
+        pomoWork: parseInt(localStorage.getItem('fx-pomo-work') || '25'),
+        pomoBreak: parseInt(localStorage.getItem('fx-pomo-break') || '5'),
+        countdown: parseInt(localStorage.getItem('fx-countdown') || '25'),
+        animeWork: 40,
+        animeBreak: 20
+    },
 
-.dashboard-main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px;
-}
+    phaseDurationMs: function() {
+        var m = this.mode;
+        if (m === 'pomodoro' || m === 'animedoro') {
+            var key = m === 'pomodoro' ? 'pomo' : 'anime';
+            return ((this.isBreak ? this.cfg[key + 'Break'] : this.cfg[key + 'Work']) || 25) * 60000;
+        }
+        if (m === 'countdown') return (this.cfg.countdown || 25) * 60000;
+        return 0;
+    },
 
-.upload-section {
-    margin-bottom: 40px;
-}
+    ringFraction: function() {
+        if (this.mode === 'stopwatch') {
+            var elapsed = this.running ? (Date.now() - this._startTime) : this._elapsed;
+            // Show seconds hand cycling
+            return (elapsed % 60000) / 60000;
+        }
+        if (!this.running && !this._endTime) return 1;
+        var total = this._totalDur || this.phaseDurationMs();
+        var rem = Math.max(0, this._endTime - Date.now());
+        return 1 - (rem / total);
+    },
 
-.upload-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px;
-    background: var(--bg-secondary);
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
+    displayTime: function() {
+        if (this.mode === 'stopwatch') {
+            return fmtMs(this.running ? (Date.now() - this._startTime) : this._elapsed);
+        }
+        if (!this.running && !this._endTime) return fmtSec(this.phaseDurationMs() / 1000);
+        var rem = Math.max(0, this._endTime - Date.now());
+        return fmtSec(rem / 1000);
+    },
 
-.upload-card:hover {
-    border-color: var(--accent);
-    background: rgba(99, 102, 241, 0.05);
-}
+    modeLabel: function() {
+        var m = this.mode;
+        if (m === 'pomodoro') return this.isBreak ? '☕ Break Time' : '🍅 Pomodoro';
+        if (m === 'countdown') return '⏳ Countdown';
+        if (m === 'stopwatch') return '⏱️ Stopwatch';
+        if (m === 'animedoro') return this.isBreak ? '🎌 Anime Break' : '🎌 Animedoro';
+        return '';
+    },
 
-.upload-icon {
-    font-size: 48px;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-}
+    start: function() {
+        if (this.running) return;
+        this.running = true;
+        var dur = this.phaseDurationMs();
+        this._totalDur = dur;
+        this._endTime = Date.now() + dur;
+        this._startTime = Date.now();
+        this._m50 = false;
+        this._m75 = false;
+        this._tick();
+        hide($('#fx-btn-play'));
+        show($('#fx-btn-pause'));
+    },
 
-.documents-section h2 {
-    font-size: 20px;
-    margin-bottom: 20px;
-}
+    pause: function() {
+        if (!this.running) return;
+        this.running = false;
+        if (this._iv) { clearInterval(this._iv); this._iv = null; }
+        if (this.mode === 'stopwatch') {
+            this._elapsed = Date.now() - this._startTime;
+        } else {
+            this._endTime = Date.now() + Math.max(0, this._endTime - Date.now());
+        }
+        show($('#fx-btn-play'));
+        hide($('#fx-btn-pause'));
+    },
 
-.documents-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-}
+    reset: function() {
+        this.running = false;
+        this.isBreak = false;
+        if (this._iv) { clearInterval(this._iv); this._iv = null; }
+        this._endTime = 0;
+        this._elapsed = 0;
+        this._m50 = false;
+        this._m75 = false;
+        hide($('#fx-motivation'));
+        show($('#fx-btn-play'));
+        hide($('#fx-btn-pause'));
+        updateTimerDisplay();
+        updateTimerRing();
+    },
 
-.document-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-}
+    _tick: function() {
+        var self = this;
+        if (this._iv) clearInterval(this._iv);
+        this._iv = setInterval(function() {
+            if (!self.running) return;
+            updateTimerDisplay();
+            updateTimerRing();
+            document.title = self.displayTime() + ' — Fixate';
 
-.document-card.processing {
-    border-color: var(--accent);
-}
+            // Motivation toasts
+            if (self.mode !== 'stopwatch') {
+                var total = self._totalDur || self.phaseDurationMs();
+                var elapsed = total - Math.max(0, self._endTime - Date.now());
+                var pct = elapsed / total;
+                if (!self._m50 && pct >= 0.5) {
+                    self._m50 = true;
+                    showMotivation('Halfway there! Keep going 💪');
+                }
+                if (!self._m75 && pct >= 0.75) {
+                    self._m75 = true;
+                    showMotivation('Almost done! 🎯');
+                }
+            }
 
-.document-card.error {
-    border-color: #ef4444;
-}
-
-.doc-icon {
-    font-size: 32px;
-    margin-bottom: 10px;
-}
-
-.doc-info h3 {
-    font-size: 16px;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.doc-info p {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.doc-info .error-msg {
-    color: #ef4444;
-}
-
-.doc-actions {
-    margin-top: auto;
-    padding-top: 15px;
-    display: flex;
-    gap: 10px;
-}
-
-.btn-primary {
-    padding: 8px 16px;
-    background: var(--accent);
-    color: white;
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 14px;
-}
-
-.btn-secondary {
-    padding: 8px 16px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.btn-delete {
-    padding: 8px 16px;
-    background: transparent;
-    border: 1px solid #ef4444;
-    color: #ef4444;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 60px;
-    color: var(--text-secondary);
-}
-
-.upload-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.upload-progress {
-    background: var(--bg-secondary);
-    padding: 40px;
-    border-radius: 12px;
-    text-align: center;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    margin: 20px auto 0;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-@media (max-width: 768px) {
-    .dashboard-header {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px 20px;
+            // Timer complete
+            if (self.mode !== 'stopwatch' && Date.now() >= self._endTime) {
+                self.running = false;
+                clearInterval(self._iv);
+                self._iv = null;
+                show($('#fx-btn-play'));
+                hide($('#fx-btn-pause'));
+                onTimerComplete();
+            }
+        }, 250);
     }
-    
-    .dashboard-main {
-        padding: 20px;
-    }
-    
-    .upload-card {
-        padding: 40px 20px;
-    }
-    
-    .documents-grid {
-        grid-template-columns: 1fr;
-    }
+};
+
+function fmtSec(totalSec) {
+    totalSec = Math.ceil(Math.max(0, totalSec));
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
 }
-</style>
+
+function fmtMs(ms) {
+    ms = Math.max(0, Math.floor(ms));
+    var totalSec = Math.floor(ms / 1000);
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function updateTimerDisplay() {
+    $('#fx-timer-digits').textContent = timer.displayTime();
+    $('#fx-timer-label').textContent = timer.modeLabel();
+}
+
+function updateTimerRing() {
+    var frac = timer.ringFraction();
+    var circ = 2 * Math.PI * 52; // 326.73
+    var dash = circ * frac;
+    var gap = circ - dash;
+    $('#fx-ring-progress').setAttribute('stroke-dasharray', dash + ' ' + gap);
+}
+
+function showMotivation(msg) {
+    var el = $('#fx-motivation');
+    el.textContent = msg;
+    el.classList.add('visible');
+    setTimeout(function() { el.classList.remove('visible'); }, 3000);
+}
+
+function onTimerComplete() {
+    // Confetti
+    triggerConfetti();
+
+    // Show completion overlay
+    var q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+    var overlay = $('#fx-completion');
+    $('#fx-completion-quote').textContent = '\u201c' + q.t + '\u201d';
+    $('#fx-completion-author').textContent = '\u2014 ' + q.a;
+    overlay.classList.add('visible');
+    var bar = $('#fx-completion-fill');
+    bar.style.width = '0%';
+    requestAnimationFrame(function() { bar.style.width = '100%'; });
+    setTimeout(function() { overlay.classList.remove('visible'); }, 6000);
+
+    // Record stats
+    var dur = timer._totalDur / 60000; // minutes
+    recordFocusStats(dur);
+
+    // Log session for enhanced stats (date, duration, mode, completed)
+    var sessions = [];
+    try { sessions = JSON.parse(localStorage.getItem('fixate_sessions') || '[]'); } catch(e) {}
+    sessions.push({
+        date: new Date().toISOString(),
+        duration: Math.round(dur),
+        mode: timer.mode,
+        completed: true
+    });
+    if (sessions.length > 500) sessions = sessions.slice(-500);
+    localStorage.setItem('fixate_sessions', JSON.stringify(sessions));
+    // Notify stats panel
+    if (window.FixateStats && window.FixateStats.refresh) FixateStats.refresh();
+
+    // Auto-break for pomodoro/animedoro
+    if (timer.mode === 'pomodoro' || timer.mode === 'animedoro') {
+        if (!timer.isBreak) {
+            timer.isBreak = true;
+        } else {
+            timer.isBreak = false;
+        }
+    }
+    updateTimerDisplay();
+    updateTimerRing();
+    document.title = 'Fixate — Focus Dashboard';
+}
+
+function triggerConfetti() {
+    var colors = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f43f5e','#84cc16','#fbbf24','#a78bfa'];
+    var container = document.createElement('div');
+    container.className = 'fx-confetti';
+    document.body.appendChild(container);
+    for (var i = 0; i < 80; i++) {
+        var p = document.createElement('div');
+        p.className = 'fx-confetti-particle';
+        p.style.left = (Math.random() * 100) + '%';
+        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        p.style.width = (Math.random() * 8 + 4) + 'px';
+        p.style.height = (Math.random() * 10 + 4) + 'px';
+        p.style.animationDelay = (Math.random() * 0.6) + 's';
+        p.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+        if (Math.random() > 0.5) p.style.borderRadius = '50%';
+        container.appendChild(p);
+    }
+    setTimeout(function() { container.remove(); }, 4500);
+}
+
+/* ═══════════════════════════════
+   FOCUS STATS
+   ═══════════════════════════════ */
+function loadFocusStats() {
+    try { return JSON.parse(localStorage.getItem('fixate_focus_stats') || '{}'); } catch(e) { return {}; }
+}
+
+function recordFocusStats(minutes) {
+    var stats = loadFocusStats();
+    var today = new Date().toISOString().split('T')[0];
+    if (!stats[today]) stats[today] = { m: 0, s: 0, l: [] };
+    stats[today].m += Math.round(minutes);
+    stats[today].s += 1;
+    stats[today].l.push({ m: Math.round(minutes), t: new Date().toLocaleTimeString() });
+    localStorage.setItem('fixate_focus_stats', JSON.stringify(stats));
+    refreshStatsPanel();
+}
+
+function refreshStatsPanel() {
+    var stats = loadFocusStats();
+    var today = new Date().toISOString().split('T')[0];
+    var td = stats[today] || { m: 0, s: 0 };
+    $('#fx-stat-today').textContent = td.m;
+    $('#fx-stat-sessions').textContent = td.s;
+    $('#fx-stat-avg').textContent = (td.s > 0 ? Math.round(td.m / td.s) : 0) + 'm';
+
+    var days = [], wt = 0;
+    for (var i = 6; i >= 0; i--) {
+        var d = new Date(); d.setDate(d.getDate() - i);
+        var k = d.toISOString().split('T')[0];
+        var dd = stats[k] || { m: 0 };
+        days.push({ label: d.toLocaleDateString('en', { weekday: 'short' }), min: dd.m, today: i === 0 });
+        wt += dd.m;
+    }
+    $('#fx-stat-week').textContent = wt;
+
+    // Render chart
+    var goal = parseInt(localStorage.getItem('fx_daily_goal') || '120');
+    var maxMin = Math.max(goal / 2, 1);
+    days.forEach(function(d) { if (d.min > maxMin) maxMin = d.min; });
+
+    var chart = $('#fx-stats-chart');
+    if (!chart) return; // Enhanced stats panel replaces this
+    chart.innerHTML = '';
+    days.forEach(function(d) {
+        var col = document.createElement('div');
+        col.className = 'fx-chart-col';
+        var bar = document.createElement('div');
+        bar.className = 'fx-chart-bar' + (d.today ? ' today' : '');
+        bar.style.height = Math.max(2, Math.round((d.min / maxMin) * 100)) + 'px';
+        var lbl = document.createElement('span');
+        lbl.className = 'fx-chart-label';
+        lbl.textContent = d.label;
+        col.appendChild(bar);
+        col.appendChild(lbl);
+        chart.appendChild(col);
+    });
+}
+
+/* ═══════════════════════════════
+   SESSION TRACKER (Intent Bar)
+   ═══════════════════════════════ */
+var session = {
+    running: false,
+    paused: false,
+    seconds: 0,
+    intent: '',
+    _iv: null,
+
+    start: function() {
+        var input = $('#fx-intent-input');
+        if (!input) return;
+        this.intent = input.value.trim();
+        if (!this.intent) return;
+        localStorage.setItem('fixate-last-intent', this.intent);
+        this.running = true;
+        this.paused = false;
+        this.seconds = 0;
+        this._tick();
+        this._updateUI();
+    },
+
+    pause: function() {
+        this.running = false;
+        this.paused = true;
+        if (this._iv) { clearInterval(this._iv); this._iv = null; }
+        this._updateUI();
+    },
+
+    resume: function() {
+        this.running = true;
+        this.paused = false;
+        this._tick();
+        this._updateUI();
+    },
+
+    stop: function() {
+        if (this._iv) { clearInterval(this._iv); this._iv = null; }
+        this.running = false;
+        this.paused = false;
+        // Save session history
+        if (this.seconds >= 10) {
+            var history = [];
+            try { history = JSON.parse(localStorage.getItem('fixate-session-history') || '[]'); } catch(e) {}
+            history.unshift({
+                intent: this.intent,
+                duration: this.seconds,
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+            if (history.length > 20) history = history.slice(0, 20);
+            localStorage.setItem('fixate-session-history', JSON.stringify(history));
+        }
+        this.seconds = 0;
+        this._updateUI();
+    },
+
+    _tick: function() {
+        var self = this;
+        if (this._iv) clearInterval(this._iv);
+        this._iv = setInterval(function() {
+            if (!self.running) return;
+            self.seconds++;
+            // Save today time
+            var today = new Date().toISOString().split('T')[0];
+            var log = {};
+            try { log = JSON.parse(localStorage.getItem('fixate-reading-log') || '{}'); } catch(e) {}
+            log[today] = (log[today] || 0) + 1;
+            localStorage.setItem('fixate-reading-log', JSON.stringify(log));
+            self._updateGoal();
+        }, 1000);
+    },
+
+    _updateUI: function() {
+        var startBtn = $('#fx-session-start');
+        if (!startBtn) return;
+        var pauseBtn = $('#fx-session-pause');
+        var resumeBtn = $('#fx-session-resume');
+        var stopBtn = $('#fx-session-stop');
+        var display = $('#fx-session-display');
+        var input = $('#fx-intent-input');
+
+        if (this.running) {
+            hide(startBtn); show(pauseBtn); hide(resumeBtn); show(stopBtn);
+            show(display);
+            input.disabled = true;
+            $('#fx-session-label').textContent = this.intent;
+        } else if (this.paused) {
+            hide(startBtn); hide(pauseBtn); show(resumeBtn); show(stopBtn);
+            show(display);
+            $('#fx-session-time').classList.add('paused');
+        } else {
+            show(startBtn); hide(pauseBtn); hide(resumeBtn); hide(stopBtn);
+            hide(display);
+            input.disabled = false;
+            $('#fx-session-time').classList.remove('paused');
+        }
+        $('#fx-session-time').textContent = Math.floor(this.seconds / 60) + ':' +
+            (this.seconds % 60 < 10 ? '0' : '') + (this.seconds % 60);
+    },
+
+    _updateGoal: function() {
+        var today = new Date().toISOString().split('T')[0];
+        var log = {};
+        try { log = JSON.parse(localStorage.getItem('fixate-reading-log') || '{}'); } catch(e) {}
+        var todaySec = log[today] || 0;
+        var goalMin = parseInt(localStorage.getItem('fixate-reading-goal') || '30');
+        var todayMin = Math.floor(todaySec / 60);
+        $('#fx-goal-val').textContent = todayMin;
+        var pct = Math.min(100, (todayMin / goalMin) * 100);
+        var circ = 2 * Math.PI * 18;
+        var dash = circ * pct / 100;
+        $('#fx-goal-arc').setAttribute('stroke-dasharray', dash + ' ' + circ);
+    }
+};
+
+/* ═══════════════════════════════
+   VIDEO BACKGROUND
+   ═══════════════════════════════ */
+var videoBg = {
+    active: null,
+    opacity: 0.35,
+
+    init: function() {
+        var saved;
+        try { saved = JSON.parse(localStorage.getItem('fixate-video-bg') || '{}'); } catch(e) { saved = {}; }
+        if (saved.active) {
+            if (saved.active === 'custom' && saved.customVideoId) {
+                this.renderVideo(saved.customVideoId, saved.customPlatform || 'youtube');
+                this.active = 'custom';
+            } else if (VIDEO_PRESETS[saved.active]) {
+                this.activate(saved.active);
+            } else if (GRADIENT_PRESETS.indexOf(saved.active) !== -1) {
+                this.renderGradient(saved.active);
+                this.active = saved.active;
+            }
+        } else {
+            // First visit — load default scene so the page isn't a black void
+            this.activate('tokyo-shibuya');
+        }
+        if (saved.opacity !== undefined) this.opacity = saved.opacity;
+        $('#fx-overlay-slider').value = Math.round(this.opacity * 100);
+        $('#fx-overlay-val').textContent = Math.round(this.opacity * 100) + '%';
+        this.applyOverlay();
+        this._updatePresetHighlight();
+    },
+
+    activate: function(id) {
+        this.active = id;
+        if (GRADIENT_PRESETS.indexOf(id) !== -1) {
+            this.renderGradient(id);
+        } else if (VIDEO_PRESETS[id]) {
+            this.renderVideo(VIDEO_PRESETS[id].videoId, VIDEO_PRESETS[id].platform);
+        }
+        this._save();
+        this._updatePresetHighlight();
+    },
+
+    renderVideo: function(videoId, platform) {
+        var container = document.getElementById('video-bg-container');
+        if (!container) return;
+        var layer = document.getElementById('video-bg-layer');
+        if (layer) layer.classList.add('active');
+        // Remove gradient classes
+        document.body.classList.forEach(function(c) {
+            if (c.startsWith('bg-gradient-')) document.body.classList.remove(c);
+        });
+        var src;
+        if (platform === 'youtube') {
+            src = 'https://www.youtube.com/embed/' + videoId
+                + '?autoplay=1&mute=1&loop=1&controls=0&playlist=' + videoId
+                + '&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1';
+        } else if (platform === 'vimeo') {
+            src = 'https://player.vimeo.com/video/' + videoId
+                + '?autoplay=1&muted=1&loop=1&background=1&controls=0';
+        }
+        container.innerHTML = '<iframe src="' + src + '" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>';
+    },
+
+    renderGradient: function(cssClass) {
+        var container = document.getElementById('video-bg-container');
+        if (container) container.innerHTML = '';
+        document.body.classList.forEach(function(c) {
+            if (c.startsWith('bg-gradient-')) document.body.classList.remove(c);
+        });
+        document.body.classList.add(cssClass);
+        var layer = document.getElementById('video-bg-layer');
+        if (layer) layer.classList.add('active');
+    },
+
+    clear: function() {
+        this.active = null;
+        var container = document.getElementById('video-bg-container');
+        if (container) container.innerHTML = '';
+        var layer = document.getElementById('video-bg-layer');
+        if (layer) layer.classList.remove('active');
+        document.body.classList.forEach(function(c) {
+            if (c.startsWith('bg-gradient-')) document.body.classList.remove(c);
+        });
+        this._save();
+        this._updatePresetHighlight();
+        hide($('#fx-bg-clear'));
+    },
+
+    setCustomUrl: function() {
+        var url = $('#fx-custom-url').value.trim();
+        if (!url) return;
+        var match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+        if (match) {
+            this.active = 'custom';
+            this._customVideoId = match[1];
+            this._customPlatform = 'youtube';
+            this.renderVideo(match[1], 'youtube');
+            this._save();
+            this._updatePresetHighlight();
+            $('#fx-custom-url').value = '';
+            hide($('#fx-bg-error'));
+            return;
+        }
+        var vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+        if (vimeoMatch) {
+            this.active = 'custom';
+            this._customVideoId = vimeoMatch[1];
+            this._customPlatform = 'vimeo';
+            this.renderVideo(vimeoMatch[1], 'vimeo');
+            this._save();
+            this._updatePresetHighlight();
+            $('#fx-custom-url').value = '';
+            hide($('#fx-bg-error'));
+            return;
+        }
+        $('#fx-bg-error').textContent = 'Could not parse that URL. Paste a YouTube or Vimeo link.';
+        show($('#fx-bg-error'));
+    },
+
+    setOpacity: function(val) {
+        this.opacity = val / 100;
+        this.applyOverlay();
+        this._save();
+    },
+
+    applyOverlay: function() {
+        var overlay = document.getElementById('video-bg-overlay');
+        if (overlay) overlay.style.background = 'rgba(8, 8, 10, ' + this.opacity + ')';
+    },
+
+    _save: function() {
+        localStorage.setItem('fixate-video-bg', JSON.stringify({
+            active: this.active,
+            customVideoId: this._customVideoId || null,
+            customPlatform: this._customPlatform || null,
+            opacity: this.opacity
+        }));
+    },
+
+    _updatePresetHighlight: function() {
+        var self = this;
+        $$('.fx-bg-preset').forEach(function(btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-bg') === self.active);
+        });
+        if (this.active) show($('#fx-bg-clear'));
+        else hide($('#fx-bg-clear'));
+    }
+};
+
+/* ═══════════════════════════════
+   SOUND MIXER
+   ═══════════════════════════════ */
+var mixer = {
+    layers: [],
+    masterVol: 80,
+    _counter: 0,
+    _showPresets: true,
+
+    addLayer: function(id, videoId, name, icon) {
+        if (this.layers.length >= 4) return;
+        if (this.hasLayer(id)) return;
+        var playerId = 'mixer-yt-' + (++this._counter);
+        var container = document.getElementById('mixer-player-container');
+        var div = document.createElement('div');
+        div.id = playerId;
+        container.appendChild(div);
+        var vol = Math.round(this.masterVol * 60 / 100);
+        this.layers.push({ id: id, videoId: videoId, name: name, icon: icon, volume: 60, muted: false, _pid: playerId });
+        window._mixerStore.create(playerId, videoId, id, vol);
+        this._showPresets = false;
+        this._render();
+    },
+
+    removeLayer: function(index) {
+        var layer = this.layers[index];
+        window._mixerStore.destroy(layer.id);
+        var el = document.getElementById(layer._pid);
+        if (el) el.remove();
+        this.layers.splice(index, 1);
+        if (this.layers.length === 0) this._showPresets = true;
+        this._render();
+    },
+
+    toggleMute: function(index) {
+        this.layers[index].muted = !this.layers[index].muted;
+        this._applyVol(index);
+        this._render();
+    },
+
+    setLayerVol: function(index, vol) {
+        this.layers[index].volume = vol;
+        this._applyVol(index);
+    },
+
+    setMasterVol: function(vol) {
+        this.masterVol = vol;
+        var self = this;
+        this.layers.forEach(function(_, i) { self._applyVol(i); });
+    },
+
+    stopAll: function() {
+        while (this.layers.length > 0) this.removeLayer(0);
+        this._showPresets = true;
+        this._render();
+    },
+
+    hasLayer: function(id) {
+        return this.layers.some(function(l) { return l.id === id; });
+    },
+
+    _applyVol: function(index) {
+        var l = this.layers[index];
+        var v = l.muted ? 0 : Math.round(this.masterVol * l.volume / 100);
+        window._mixerStore.setVolume(l.id, v);
+    },
+
+    _render: function() {
+        var layersDiv = $('#fx-mixer-layers');
+        layersDiv.innerHTML = '';
+        var self = this;
+
+        this.layers.forEach(function(layer, i) {
+            var row = document.createElement('div');
+            row.className = 'fx-mixer-layer';
+            row.innerHTML =
+                '<span class="fx-layer-icon">' + layer.icon + '</span>' +
+                '<span class="fx-layer-name">' + layer.name + '</span>' +
+                '<button class="fx-layer-mute' + (layer.muted ? ' muted' : '') + '" data-mute="' + i + '">' + (layer.muted ? '🔇' : '🔊') + '</button>' +
+                '<input type="range" min="0" max="100" value="' + layer.volume + '" data-layer-vol="' + i + '">' +
+                '<button class="fx-layer-remove" data-remove="' + i + '">✕</button>';
+            layersDiv.appendChild(row);
+        });
+
+        // Update preset grid visibility
+        var grid = $('#fx-mixer-preset-grid');
+        var toggleBtn = $('#fx-mixer-toggle-presets');
+        if (this._showPresets) { show(grid); toggleBtn.textContent = '− Hide'; }
+        else { hide(grid); toggleBtn.textContent = '+ Add Sound'; }
+
+        // Stop all button
+        if (this.layers.length > 0) show($('#fx-mixer-stop-all'));
+        else hide($('#fx-mixer-stop-all'));
+
+        // Update used chips
+        $$('#fx-mixer-preset-grid .fx-preset-chip').forEach(function(chip) {
+            chip.classList.toggle('used', self.hasLayer(chip.getAttribute('data-layer-id')));
+        });
+    }
+};
+
+/* ═══════════════════════════════
+   SPOTIFY
+   ═══════════════════════════════ */
+var spotify = {
+    load: function() {
+        var url = $('#fx-spotify-url').value.trim();
+        if (!url) return;
+        var match = url.match(/spotify\.com\/(playlist|album|track)\/([a-zA-Z0-9]+)/);
+        if (!match) {
+            $('#fx-spotify-error').textContent = 'Invalid Spotify URL.';
+            show($('#fx-spotify-error'));
+            return;
+        }
+        hide($('#fx-spotify-error'));
+        var type = match[1], id = match[2];
+        var container = $('#fx-spotify-container');
+        container.innerHTML = '<iframe src="https://open.spotify.com/embed/' + type + '/' + id + '" width="100%" height="' + (type === 'track' ? '152' : '380') + '" frameborder="0" allowtransparency="true" allow="encrypted-media" style="border-radius:12px;"></iframe>';
+        show($('#fx-spotify-clear'));
+        $('#fx-spotify-url').value = '';
+    },
+
+    clear: function() {
+        $('#fx-spotify-container').innerHTML = '';
+        hide($('#fx-spotify-clear'));
+        $('#fx-spotify-url').value = '';
+        hide($('#fx-spotify-error'));
+    }
+};
+
+/* ═══════════════════════════════
+   CALENDAR + PLANNER
+   ═══════════════════════════════ */
+var calendar = {
+    calTab: 'google',
+    plannerBlocks: {},
+    editingHour: null,
+
+    init: function() {
+        // Google Calendar
+        var g = localStorage.getItem('fixate_google_cal_url');
+        if (g) {
+            $('#fx-google-url').value = g;
+            this._showGoogle(g);
+        }
+        // Outlook Calendar
+        var o = localStorage.getItem('fixate_outlook_cal_url');
+        if (o) {
+            $('#fx-outlook-url').value = o;
+            this._showOutlook(o);
+        }
+        // Planner
+        try { this.plannerBlocks = JSON.parse(localStorage.getItem('fixate_planner') || '{}'); } catch(e) { this.plannerBlocks = {}; }
+        this._renderPlanner();
+    },
+
+    switchTab: function(tab) {
+        this.calTab = tab;
+        $$('#fx-cal-tabs button').forEach(function(btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-caltab') === tab);
+        });
+        ['google', 'outlook', 'planner'].forEach(function(t) {
+            var el = $('#fx-cal-' + t);
+            if (t === tab) show(el); else hide(el);
+        });
+    },
+
+    saveGoogle: function() {
+        var url = $('#fx-google-url').value.trim();
+        if (!url) return;
+        localStorage.setItem('fixate_google_cal_url', url);
+        this._showGoogle(url);
+    },
+
+    removeGoogle: function() {
+        localStorage.removeItem('fixate_google_cal_url');
+        hide($('#fx-google-active'));
+        $('#fx-google-url').value = '';
+    },
+
+    saveOutlook: function() {
+        var url = $('#fx-outlook-url').value.trim();
+        if (!url) return;
+        localStorage.setItem('fixate_outlook_cal_url', url);
+        this._showOutlook(url);
+    },
+
+    removeOutlook: function() {
+        localStorage.removeItem('fixate_outlook_cal_url');
+        hide($('#fx-outlook-active'));
+        $('#fx-outlook-url').value = '';
+    },
+
+    _buildGoogleSrc: function(url) {
+        var tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+        if (url.includes('calendar.google.com')) {
+            return url.replace(/&?ctz=[^&]*/, '') + '&ctz=' + tz + '&color=%236366f1&showTitle=0&showNav=0&showDate=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&mode=WEEK&height=420&wkst=1&bgcolor=%23121212';
+        }
+        return 'https://calendar.google.com/calendar/embed?src=' + encodeURIComponent(url) + '&ctz=' + tz + '&color=%236366f1&showTitle=0&showNav=0&showDate=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&mode=WEEK&height=420&wkst=1&bgcolor=%23121212';
+    },
+
+    _buildOutlookSrc: function(url) {
+        if (url.includes('outlook.live.com') || url.includes('outlook.office.com')) return url;
+        return 'https://outlook.live.com/calendar/0/embed?src=' + encodeURIComponent(url);
+    },
+
+    _showGoogle: function(url) {
+        $('#fx-google-iframe').src = this._buildGoogleSrc(url);
+        show($('#fx-google-active'));
+    },
+
+    _showOutlook: function(url) {
+        $('#fx-outlook-iframe').src = this._buildOutlookSrc(url);
+        show($('#fx-outlook-active'));
+    },
+
+    _renderPlanner: function() {
+        var grid = $('#fx-planner-grid');
+        grid.innerHTML = '';
+        var nowHour = new Date().getHours();
+        var self = this;
+        for (var h = 6; h <= 23; h++) {
+            (function(hour) {
+                var row = document.createElement('div');
+                row.className = 'fx-planner-row' + (nowHour === hour ? ' now' : '');
+                var hLabel = (hour % 12 || 12) + ':00 ' + (hour < 12 ? 'AM' : 'PM');
+                var text = self.plannerBlocks[hour] || '';
+                row.innerHTML =
+                    '<span class="fx-planner-hour">' + hLabel + '</span>' +
+                    '<span class="fx-planner-block">' + text + '</span>' +
+                    (text ? '<button class="fx-planner-del" data-del-hour="' + hour + '">✕</button>' : '');
+                row.addEventListener('click', function(e) {
+                    if (e.target.hasAttribute('data-del-hour')) {
+                        delete self.plannerBlocks[hour];
+                        localStorage.setItem('fixate_planner', JSON.stringify(self.plannerBlocks));
+                        self._renderPlanner();
+                        return;
+                    }
+                    self.editingHour = hour;
+                    $('#fx-planner-edit-input').value = self.plannerBlocks[hour] || '';
+                    $('#fx-planner-edit').classList.add('visible');
+                    $('#fx-planner-edit-input').focus();
+                });
+                grid.appendChild(row);
+            })(h);
+        }
+    },
+
+    savePlannerBlock: function() {
+        if (this.editingHour === null) return;
+        var text = $('#fx-planner-edit-input').value.trim();
+        if (text) this.plannerBlocks[this.editingHour] = text;
+        else delete this.plannerBlocks[this.editingHour];
+        localStorage.setItem('fixate_planner', JSON.stringify(this.plannerBlocks));
+        this.editingHour = null;
+        $('#fx-planner-edit').classList.remove('visible');
+        this._renderPlanner();
+    },
+
+    cancelPlannerEdit: function() {
+        this.editingHour = null;
+        $('#fx-planner-edit').classList.remove('visible');
+    }
+};
+
+/* ═══════════════════════════════
+   NOTEPAD
+   ═══════════════════════════════ */
+var notepad = {
+    _saveTimer: null,
+    _showChars: false,
+
+    init: function() {
+        var textarea = $('#fx-notepad');
+        textarea.value = localStorage.getItem('fixate_notepad') || '';
+        this._updateCounts();
+
+        var self = this;
+        textarea.addEventListener('input', function() {
+            self._updateCounts();
+            if (self._saveTimer) clearTimeout(self._saveTimer);
+            self._saveTimer = setTimeout(function() { self._save(); }, 2000);
+        });
+    },
+
+    _updateCounts: function() {
+        var text = $('#fx-notepad').value;
+        var trimmed = text.trim();
+        var words = trimmed ? trimmed.split(/\s+/).length : 0;
+        $('#fx-notes-words').textContent = words + ' words';
+        if (this._showChars) {
+            $('#fx-notes-chars').textContent = ' · ' + text.length + ' chars';
+            show($('#fx-notes-chars'));
+        } else {
+            hide($('#fx-notes-chars'));
+        }
+    },
+
+    _save: function() {
+        localStorage.setItem('fixate_notepad', $('#fx-notepad').value);
+        show($('#fx-notes-saved'));
+        setTimeout(function() { hide($('#fx-notes-saved')); }, 1500);
+    },
+
+    toggleChars: function() {
+        this._showChars = !this._showChars;
+        this._updateCounts();
+    },
+
+    clear: function() {
+        if (!confirm('Clear all notes?')) return;
+        $('#fx-notepad').value = '';
+        this._updateCounts();
+        localStorage.removeItem('fixate_notepad');
+    }
+};
+
+/* ═══════════════════════════════
+   PANEL MANAGEMENT
+   ═══════════════════════════════ */
+var activePanel = null;
+
+function openPanel(name) {
+    closePanel();
+    activePanel = name;
+    var panel = $('#panel-' + name);
+    if (panel) panel.classList.add('open');
+    $('#fx-panel-backdrop').classList.add('visible');
+
+    // Initialize panel-specific data on open
+    if (name === 'stats') refreshStatsPanel();
+    if (name === 'calendar') calendar.init();
+    if (name === 'sound') mixer._render();
+    if (name === 'settings') settings.syncUI();
+}
+
+function closePanel() {
+    activePanel = null;
+    $$('.fx-slide-panel').forEach(function(p) { p.classList.remove('open'); });
+    $('#fx-panel-backdrop').classList.remove('visible');
+}
+
+/* ═══════════════════════════════
+   EVENT WIRING
+   ═══════════════════════════════ */
+function wireEvents() {
+    /* Mode pills */
+    $$('#fx-mode-pills button').forEach(function(btn) {
+        btn.addEventListener('click', function() { setMode(this.getAttribute('data-mode')); });
+    });
+
+    /* Timer mode pills */
+    $$('#fx-timer-modes button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var m = this.getAttribute('data-tmode');
+            timer.mode = m;
+            $$('#fx-timer-modes button').forEach(function(b) {
+                b.classList.toggle('active', b.getAttribute('data-tmode') === m);
+            });
+            // Show/hide config
+            if (m === 'pomodoro' || m === 'animedoro') {
+                show($('#fx-config-pomo')); hide($('#fx-config-countdown'));
+            } else if (m === 'countdown') {
+                hide($('#fx-config-pomo')); show($('#fx-config-countdown'));
+            } else {
+                hide($('#fx-config-pomo')); hide($('#fx-config-countdown'));
+            }
+            timer.reset();
+        });
+    });
+
+    /* Timer controls */
+    $('#fx-btn-play').addEventListener('click', function() { timer.start(); });
+    $('#fx-btn-pause').addEventListener('click', function() { timer.pause(); });
+    $('#fx-btn-reset').addEventListener('click', function() { timer.reset(); });
+    // Click digits to reset
+    $('#fx-timer-digits').addEventListener('click', function() { if (!timer.running) timer.reset(); });
+
+    /* Timer config inputs */
+    $('#fx-cfg-work').addEventListener('change', function() {
+        timer.cfg.pomoWork = parseInt(this.value) || 25;
+        localStorage.setItem('fx-pomo-work', this.value);
+        timer.reset();
+    });
+    $('#fx-cfg-break').addEventListener('change', function() {
+        timer.cfg.pomoBreak = parseInt(this.value) || 5;
+        localStorage.setItem('fx-pomo-break', this.value);
+        timer.reset();
+    });
+    $('#fx-cfg-countdown').addEventListener('change', function() {
+        timer.cfg.countdown = parseInt(this.value) || 25;
+        localStorage.setItem('fx-countdown', this.value);
+        timer.reset();
+    });
+
+    /* Session intent */
+    $('#fx-intent-input').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter' && !session.running && !session.paused) session.start();
+    });
+    $('#fx-session-start').addEventListener('click', function() { session.start(); });
+    $('#fx-session-pause').addEventListener('click', function() { session.pause(); });
+    $('#fx-session-resume').addEventListener('click', function() { session.resume(); });
+    $('#fx-session-stop').addEventListener('click', function() { session.stop(); });
+
+    /* Ambient bar buttons */
+    $$('.fx-amb-btn[data-panel]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var panel = this.getAttribute('data-panel');
+            if (activePanel === panel) closePanel();
+            else openPanel(panel);
+        });
+    });
+
+    /* Panel close — handled by inline onclick on backdrop and close buttons */
+
+    /* Transparency slider */
+    initTransparency();
+
+    /* ── Background Panel ── */
+    $$('.fx-bg-preset[data-bg]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            videoBg.activate(this.getAttribute('data-bg'));
+        });
+    });
+    $('#fx-custom-url-set').addEventListener('click', function() { videoBg.setCustomUrl(); });
+    $('#fx-custom-url').addEventListener('keyup', function(e) { if (e.key === 'Enter') videoBg.setCustomUrl(); });
+    $('#fx-overlay-slider').addEventListener('input', function() {
+        videoBg.setOpacity(parseInt(this.value));
+        $('#fx-overlay-val').textContent = this.value + '%';
+    });
+    $('#fx-bg-clear').addEventListener('click', function() { videoBg.clear(); });
+
+    /* ── Sound Mixer ── */
+    $('#fx-mixer-master').addEventListener('input', function() {
+        mixer.setMasterVol(parseInt(this.value));
+        $('#fx-mixer-master-val').textContent = this.value + '%';
+    });
+    $('#fx-mixer-toggle-presets').addEventListener('click', function() {
+        mixer._showPresets = !mixer._showPresets;
+        mixer._render();
+    });
+    // Preset chips
+    $$('#fx-mixer-preset-grid .fx-preset-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+            mixer.addLayer(
+                this.getAttribute('data-layer-id'),
+                this.getAttribute('data-vid'),
+                this.getAttribute('data-name'),
+                this.getAttribute('data-icon')
+            );
+        });
+    });
+    $('#fx-mixer-stop-all').addEventListener('click', function() { mixer.stopAll(); });
+    // Delegated events for mixer layers
+    $('#fx-mixer-layers').addEventListener('click', function(e) {
+        var muteBtn = e.target.closest('[data-mute]');
+        if (muteBtn) { mixer.toggleMute(parseInt(muteBtn.getAttribute('data-mute'))); return; }
+        var removeBtn = e.target.closest('[data-remove]');
+        if (removeBtn) { mixer.removeLayer(parseInt(removeBtn.getAttribute('data-remove'))); return; }
+    });
+    $('#fx-mixer-layers').addEventListener('input', function(e) {
+        var volInput = e.target.closest('[data-layer-vol]');
+        if (volInput) { mixer.setLayerVol(parseInt(volInput.getAttribute('data-layer-vol')), parseInt(volInput.value)); }
+    });
+
+    /* ── Spotify ── */
+    $('#fx-spotify-load').addEventListener('click', function() { spotify.load(); });
+    $('#fx-spotify-url').addEventListener('keyup', function(e) { if (e.key === 'Enter') spotify.load(); });
+    $('#fx-spotify-clear').addEventListener('click', function() { spotify.clear(); });
+
+    /* ── Calendar ── */
+    $$('#fx-cal-tabs button').forEach(function(btn) {
+        btn.addEventListener('click', function() { calendar.switchTab(this.getAttribute('data-caltab')); });
+    });
+    $('#fx-google-save').addEventListener('click', function() { calendar.saveGoogle(); });
+    $('#fx-google-url').addEventListener('keyup', function(e) { if (e.key === 'Enter') calendar.saveGoogle(); });
+    $('#fx-google-remove').addEventListener('click', function() { calendar.removeGoogle(); });
+    $('#fx-outlook-save').addEventListener('click', function() { calendar.saveOutlook(); });
+    $('#fx-outlook-url').addEventListener('keyup', function(e) { if (e.key === 'Enter') calendar.saveOutlook(); });
+    $('#fx-outlook-remove').addEventListener('click', function() { calendar.removeOutlook(); });
+    $('#fx-planner-save').addEventListener('click', function() { calendar.savePlannerBlock(); });
+    $('#fx-planner-cancel').addEventListener('click', function() { calendar.cancelPlannerEdit(); });
+    $('#fx-planner-edit-input').addEventListener('keyup', function(e) { if (e.key === 'Enter') calendar.savePlannerBlock(); });
+
+    /* ── Stats ── */
+    $('#fx-stats-goal-input').addEventListener('change', function() {
+        localStorage.setItem('fx_daily_goal', this.value);
+        refreshStatsPanel();
+    });
+
+    /* ── Notepad ── */
+    notepad.init();
+    $('#fx-notes-chars-toggle').addEventListener('click', function() { notepad.toggleChars(); });
+    $('#fx-notes-clear').addEventListener('click', function() { notepad.clear(); });
+
+    /* ── Goal Ring Click ── */
+    $('#fx-goal-ring').addEventListener('click', function() {
+        openPanel('stats');
+    });
+
+    /* ── Keyboard shortcuts ── */
+    document.addEventListener('keydown', function(e) {
+        // Escape closes panels
+        if (e.key === 'Escape') { closePanel(); return; }
+        // Don't capture when in input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        // Space to toggle timer
+        if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            if (timer.running) timer.pause();
+            else timer.start();
+        }
+    });
+
+    /* ── Noise Generator Controls ── */
+    var noiseActive = {};
+    $$('.fx-noise-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var type = this.getAttribute('data-noise');
+            if (noiseActive[type]) {
+                NoiseGenerator.stop();
+                this.classList.remove('active');
+                noiseActive[type] = false;
+            } else {
+                // Deactivate all others
+                $$('.fx-noise-toggle').forEach(function(b) { b.classList.remove('active'); });
+                Object.keys(noiseActive).forEach(function(k) { noiseActive[k] = false; });
+                // Activate this one
+                NoiseGenerator.init();
+                NoiseGenerator.play(type);
+                this.classList.add('active');
+                noiseActive[type] = true;
+            }
+        });
+    });
+    $$('.fx-noise-slider').forEach(function(slider) {
+        slider.addEventListener('input', function() {
+            var type = this.id.replace('fx-noise-vol-', '');
+            var vol = parseInt(this.value) / 100;
+            document.getElementById('fx-noise-val-' + type).textContent = Math.round(vol * 100) + '%';
+            NoiseGenerator.setVolume(type, vol);
+        });
+    });
+
+    /* ── Coworking Panel Wiring ── */
+    (function() {
+        var cw = null;
+        function addChatMsg(msg, cls) {
+            var div = document.createElement('div');
+            div.className = 'fx-cw-msg' + (cls ? ' ' + cls : '');
+            if (msg.sender) {
+                div.innerHTML = '<span class="fx-cw-msg-sender">' + msg.sender + '</span>' + msg.content + '<span class="fx-cw-msg-time">' + new Date(msg.ts).toLocaleTimeString() + '</span>';
+            } else {
+                div.textContent = msg.content || msg;
+            }
+            var chatEl = document.getElementById('fx-cw-chat');
+            chatEl.appendChild(div);
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+        $('#fx-cw-join-btn').addEventListener('click', function() {
+            var room = $('#fx-cw-room').value.trim() || 'focus-room';
+            var name = $('#fx-cw-name').value.trim() || 'anon';
+            if (!window.FixateCoworking) { addChatMsg({content:'Coworking server not connected'}, 'fx-cw-msg-system'); return; }
+            cw = FixateCoworking.createClient();
+            cw.onPresence(function(members, count) {
+                $('#fx-cw-member-count').textContent = count + ' online';
+                var html = '';
+                members.forEach(function(m) { html += '<span class="fx-cw-presence-badge">' + m.name + '</span>'; });
+                $('#fx-cw-presence').innerHTML = html;
+            });
+            cw.onChat(function(msg) { addChatMsg(msg); });
+            cw.onTimerSync(function(state, sender) {
+                $('#fx-cw-timer').innerHTML = sender + ': <b>' + (state.label || 'Focus') + '</b> — ' + (state.running ? '▶ Running' : '⏸ Paused');
+            });
+            cw.onJoined(function(info) {
+                addChatMsg({content:'Joined room: ' + info.room}, 'fx-cw-msg-system');
+                if (info.timer) $('#fx-cw-timer').textContent = 'Timer: ' + (info.timer.label || 'Focus');
+            });
+            cw.connect(room, name);
+            $('#fx-cw-room-name').textContent = room;
+            $('#fx-coworking-join').classList.add('fx-hidden');
+            $('#fx-coworking-active').classList.remove('fx-hidden');
+        });
+        $('#fx-cw-send-btn').addEventListener('click', function() {
+            var input = $('#fx-cw-chat-input');
+            var msg = input.value.trim();
+            if (msg && cw) { cw.sendChat(msg); input.value = ''; }
+        });
+        $('#fx-cw-chat-input').addEventListener('keyup', function(e) { if (e.key === 'Enter') $('#fx-cw-send-btn').click(); });
+        $('#fx-cw-leave-btn').addEventListener('click', function() {
+            if (cw) cw.disconnect();
+            cw = null;
+            $('#fx-cw-chat').innerHTML = '';
+            $('#fx-cw-presence').innerHTML = '';
+            $('#fx-coworking-join').classList.remove('fx-hidden');
+            $('#fx-coworking-active').classList.add('fx-hidden');
+        });
+    })();
+}
+
+/* ═══════════════════════════════
+   SETTINGS PANEL
+   ═══════════════════════════════ */
+var settings = {
+    _defaults: {
+        frost: 45, showGreeting: true, showQuote: true, showClock: true,
+        showTimer: true, showDock: true, timerFocus: 25, timerShort: 5,
+        timerLong: 15, timerCycles: 4, timerPreset: 'pomodoro', timerSound: true,
+        masterVol: 80, noiseWhite: false, noiseBrown: false, noisePink: false,
+        noiseDefault: 'white', readerMode: 'normal', readerWpm: 300,
+        quoteCategory: 'all', quoteInterval: 30, accentColor: '#7c3aed',
+        bgName: 'None', themeName: 'Default Dark'
+    },
+    _key: 'fixate_settings',
+    get: function(key) {
+        try { var d = JSON.parse(localStorage.getItem(this._key) || '{}'); return d.hasOwnProperty(key) ? d[key] : this._defaults[key]; }
+        catch(e) { return this._defaults[key]; }
+    },
+    set: function(key, val) {
+        try { var d = JSON.parse(localStorage.getItem(this._key) || '{}'); d[key] = val; localStorage.setItem(this._key, JSON.stringify(d)); } catch(e) {}
+        this._apply(key, val);
+    },
+    getAll: function() { var o = {}, s = this; Object.keys(this._defaults).forEach(function(k) { o[k] = s.get(k); }); return o; },
+    reset: function() {
+        localStorage.removeItem(this._key); var s = this;
+        Object.keys(this._defaults).forEach(function(k) { s._apply(k, s._defaults[k]); });
+        this.syncUI();
+    },
+    _apply: function(key, val) {
+        switch(key) {
+            case 'frost': applyTransparency(val); var sl = $('#fx-transparency-slider'); if (sl) sl.value = val; break;
+            case 'showGreeting': var g = $('#fx-topbar .fx-greeting'); if (g) g.style.display = val ? '' : 'none'; break;
+            case 'showTimer': var tc = $('#fx-timer-card'); if (tc) tc.style.display = val ? '' : 'none'; break;
+            case 'showDock': var dk = $('#fx-ambient-bar'); if (dk) dk.style.display = val ? '' : 'none'; break;
+            case 'timerFocus': timer.cfg.pomoWork = val; $('#fx-cfg-work').value = val; localStorage.setItem('fx-pomo-work', String(val)); if (!timer.running) timer.reset(); break;
+            case 'timerShort': timer.cfg.pomoBreak = val; $('#fx-cfg-break').value = val; localStorage.setItem('fx-pomo-break', String(val)); if (!timer.running) timer.reset(); break;
+            case 'timerLong': localStorage.setItem('fx-pomo-long-break', String(val)); break;
+            case 'timerCycles': localStorage.setItem('fx-pomo-cycles', String(val)); break;
+            case 'timerSound': localStorage.setItem('fx-timer-sound', val ? '1' : '0'); break;
+            case 'masterVol': var ms = $('#fx-mixer-master'); if (ms) ms.value = val; var mv = $('#fx-mixer-master-val'); if (mv) mv.textContent = val + '%'; mixer.setMasterVol(val); break;
+            case 'noiseDefault': localStorage.setItem('fx-noise-default', val); break;
+            case 'readerMode': localStorage.setItem('fx-reader-mode', val); break;
+            case 'readerWpm': localStorage.setItem('fx-reader-wpm', String(val)); break;
+            case 'quoteCategory': localStorage.setItem('fx-quote-category', val); break;
+            case 'quoteInterval': localStorage.setItem('fx-quote-interval', String(val)); break;
+            case 'accentColor': document.documentElement.style.setProperty('--accent', val); localStorage.setItem('fx-accent-color', val); break;
+        }
+    },
+    syncUI: function() {
+        var s = this.getAll();
+        $('#fx-set-frost').value = s.frost; $('#fx-set-frost-val').textContent = s.frost + '%';
+        $('#fx-set-show-greeting').checked = s.showGreeting; $('#fx-set-show-quote').checked = s.showQuote;
+        $('#fx-set-show-clock').checked = s.showClock; $('#fx-set-show-timer').checked = s.showTimer;
+        $('#fx-set-show-dock').checked = s.showDock;
+        $('#fx-set-timer-focus').value = s.timerFocus; $('#fx-set-timer-short').value = s.timerShort;
+        $('#fx-set-timer-long').value = s.timerLong; $('#fx-set-timer-cycles').value = s.timerCycles;
+        $('#fx-set-timer-sound').checked = s.timerSound;
+        $$('#fx-timer-presets .fx-settings-preset').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-preset') === s.timerPreset); });
+        $('#fx-set-master-vol').value = s.masterVol; $('#fx-set-master-vol-val').textContent = s.masterVol + '%';
+        $('#fx-set-noise-white').checked = s.noiseWhite; $('#fx-set-noise-brown').checked = s.noiseBrown;
+        $('#fx-set-noise-pink').checked = s.noisePink; $('#fx-set-noise-default').value = s.noiseDefault;
+        $('#fx-set-theme-name').textContent = s.themeName; $('#fx-set-bg-name').textContent = s.bgName;
+        $('#fx-set-accent-color').value = s.accentColor;
+        $('#fx-set-reader-mode').value = s.readerMode; $('#fx-set-reader-wpm').value = s.readerWpm;
+        $('#fx-set-quote-category').value = s.quoteCategory; $('#fx-set-quote-interval').value = s.quoteInterval;
+    },
+    init: function() {
+        var self = this;
+        // Tab switching
+        $$('#fx-settings-tabs button').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var tab = this.getAttribute('data-stab');
+                $$('#fx-settings-tabs button').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                $$('.fx-settings-tab-content').forEach(function(c) { c.classList.remove('active'); });
+                var content = $('[data-stab-content="' + tab + '"]');
+                if (content) content.classList.add('active');
+            });
+        });
+        // Frost
+        $('#fx-set-frost').addEventListener('input', function() { var v = parseInt(this.value); $('#fx-set-frost-val').textContent = v + '%'; self.set('frost', v); });
+        // Toggles
+        $('#fx-set-show-greeting').addEventListener('change', function() { self.set('showGreeting', this.checked); });
+        $('#fx-set-show-quote').addEventListener('change', function() { self.set('showQuote', this.checked); });
+        $('#fx-set-show-clock').addEventListener('change', function() { self.set('showClock', this.checked); });
+        $('#fx-set-show-timer').addEventListener('change', function() { self.set('showTimer', this.checked); });
+        $('#fx-set-show-dock').addEventListener('change', function() { self.set('showDock', this.checked); });
+        // Timer
+        $('#fx-set-timer-focus').addEventListener('change', function() { self.set('timerFocus', parseInt(this.value) || 25); });
+        $('#fx-set-timer-short').addEventListener('change', function() { self.set('timerShort', parseInt(this.value) || 5); });
+        $('#fx-set-timer-long').addEventListener('change', function() { self.set('timerLong', parseInt(this.value) || 15); });
+        $('#fx-set-timer-cycles').addEventListener('change', function() { self.set('timerCycles', parseInt(this.value) || 4); });
+        $('#fx-set-timer-sound').addEventListener('change', function() { self.set('timerSound', this.checked); });
+        // Timer presets
+        var presetCfg = { pomodoro: {f:25,s:5,l:15,c:4}, deepwork: {f:45,s:15,l:30,c:3} };
+        $$('#fx-timer-presets .fx-settings-preset').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var p = this.getAttribute('data-preset');
+                $$('#fx-timer-presets .fx-settings-preset').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active'); self.set('timerPreset', p);
+                if (presetCfg[p]) {
+                    var c = presetCfg[p];
+                    $('#fx-set-timer-focus').value = c.f; $('#fx-set-timer-short').value = c.s;
+                    $('#fx-set-timer-long').value = c.l; $('#fx-set-timer-cycles').value = c.c;
+                    self.set('timerFocus', c.f); self.set('timerShort', c.s);
+                    self.set('timerLong', c.l); self.set('timerCycles', c.c);
+                }
+            });
+        });
+        // Sounds
+        $('#fx-set-master-vol').addEventListener('input', function() { var v = parseInt(this.value); $('#fx-set-master-vol-val').textContent = v + '%'; self.set('masterVol', v); });
+        $('#fx-set-noise-white').addEventListener('change', function() { self.set('noiseWhite', this.checked); });
+        $('#fx-set-noise-brown').addEventListener('change', function() { self.set('noiseBrown', this.checked); });
+        $('#fx-set-noise-pink').addEventListener('change', function() { self.set('noisePink', this.checked); });
+        $('#fx-set-noise-default').addEventListener('change', function() { self.set('noiseDefault', this.value); });
+        // Themes
+        $('#fx-set-open-bg-panel').addEventListener('click', function() { closePanel(); openPanel('bg'); });
+        $('#fx-set-open-bg-panel2').addEventListener('click', function() { closePanel(); openPanel('bg'); });
+        $('#fx-set-accent-color').addEventListener('input', function() { self.set('accentColor', this.value); });
+        // Reader
+        $('#fx-set-reader-mode').addEventListener('change', function() { self.set('readerMode', this.value); });
+        $('#fx-set-reader-wpm').addEventListener('change', function() { self.set('readerWpm', parseInt(this.value) || 300); });
+        // Quotes
+        $('#fx-set-quote-category').addEventListener('change', function() { self.set('quoteCategory', this.value); });
+        $('#fx-set-quote-interval').addEventListener('change', function() { self.set('quoteInterval', parseInt(this.value)); });
+        // Reset
+        $('#fx-set-reset-all').addEventListener('click', function() { if (confirm('Reset all settings to defaults?')) self.reset(); });
+        // Apply all stored settings on load
+        var all = this.getAll(); Object.keys(all).forEach(function(k) { self._apply(k, all[k]); });
+        this.syncUI();
+        console.log('[Fixate] Settings panel initialized');
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   PDF READER — PDF.js CDN loader + reader logic
+   ═══════════════════════════════════════════════════════════════ */
+// PDF.js dynamic loader
+if (!window.pdfjsLib) {
+    var _pdfjs_classic = document.createElement('script');
+    _pdfjs_classic.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    _pdfjs_classic.onload = function() {
+        if (!window.pdfjsLib) window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+        if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions)
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    };
+    document.head.appendChild(_pdfjs_classic);
+}
+
+(function() {
+'use strict';
+var $ = function(s, c) { return (c || document).querySelector(s); };
+var $$ = function(s, c) { return Array.from((c || document).querySelectorAll(s)); };
+function show(el) { if (el) el.classList.remove('fx-hidden'); }
+function hide(el) { if (el) el.classList.add('fx-hidden'); }
+var rstate = {
+    mode: 'normal', fileLoaded: false, fileName: '', fileType: '',
+    pdfDoc: null, pdfPage: 1, pdfTotal: 0, pdfScale: 1.2,
+    rawText: '', textLines: [],
+    rsvpWords: [], rsvpIndex: 0, rsvpPlaying: false, rsvpTimer: null, rsvpWPM: 300,
+    flowLines: [], flowIndex: 0, flowPlaying: false, flowTimer: null, flowSpeed: 4.0,
+    readingActive: false
+};
+function initReader() {
+    $$('#fx-reader-tabs button').forEach(function(btn) {
+        btn.addEventListener('click', function() { switchReaderMode(this.getAttribute('data-rmode')); });
+    });
+    var fileInput = $('#fx-reader-file-input');
+    var uploadArea = $('#fx-reader-upload');
+    fileInput.addEventListener('change', function(e) { if (e.target.files.length > 0) loadFile(e.target.files[0]); });
+    uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = 'var(--accent)'; });
+    uploadArea.addEventListener('dragleave', function() { this.style.borderColor = ''; });
+    uploadArea.addEventListener('drop', function(e) { e.preventDefault(); this.style.borderColor = ''; if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]); });
+    $('#fx-reader-file-close').addEventListener('click', function() { resetFile(); });
+    $('#fx-reader-start').addEventListener('click', function() { toggleFocusMode(); });
+    $('#fx-reader-pdf-prev').addEventListener('click', function() { if (rstate.pdfPage > 1) { rstate.pdfPage--; renderPDFPage(); } });
+    $('#fx-reader-pdf-next').addEventListener('click', function() { if (rstate.pdfPage < rstate.pdfTotal) { rstate.pdfPage++; renderPDFPage(); } });
+    $('#fx-reader-pdf-zoom-in').addEventListener('click', function() { rstate.pdfScale = Math.min(3, rstate.pdfScale + 0.2); renderPDFPage(); });
+    $('#fx-reader-pdf-zoom-out').addEventListener('click', function() { rstate.pdfScale = Math.max(0.5, rstate.pdfScale - 0.2); renderPDFPage(); });
+    $('#fx-reader-rsvp-play').addEventListener('click', function() { rsvpToggle(); });
+    $('#fx-reader-rsvp-rewind').addEventListener('click', function() { rstate.rsvpIndex = Math.max(0, rstate.rsvpIndex - 10); updateRSVPDisplay(); });
+    $('#fx-reader-rsvp-forward').addEventListener('click', function() { rstate.rsvpIndex = Math.min(rstate.rsvpWords.length - 1, rstate.rsvpIndex + 10); updateRSVPDisplay(); });
+    $('#fx-reader-rsvp-wpm').addEventListener('input', function() { rstate.rsvpWPM = parseInt(this.value); $('#fx-reader-rsvp-wpm-val').textContent = rstate.rsvpWPM + ' WPM'; updateRSVPTimeEstimate(); });
+    $('#fx-reader-flow-play').addEventListener('click', function() { flowToggle(); });
+    $('#fx-reader-flow-rewind').addEventListener('click', function() { rstate.flowIndex = Math.max(0, rstate.flowIndex - 1); updateFlowDisplay(); });
+    $('#fx-reader-flow-forward').addEventListener('click', function() { rstate.flowIndex = Math.min(rstate.flowLines.length - 1, rstate.flowIndex + 1); updateFlowDisplay(); });
+    $('#fx-reader-flow-speed').addEventListener('input', function() { rstate.flowSpeed = parseFloat(this.value); $('#fx-reader-flow-speed-val').textContent = rstate.flowSpeed.toFixed(1) + 's'; });
+    document.addEventListener('keydown', function(e) {
+        var panel = $('#panel-reader');
+        if (!panel || !panel.classList.contains('open')) return;
+        if (rstate.mode === 'rsvp' && rstate.fileLoaded) {
+            if (e.code === 'Space') { e.preventDefault(); rsvpToggle(); }
+            if (e.code === 'ArrowLeft') { e.preventDefault(); rstate.rsvpIndex = Math.max(0, rstate.rsvpIndex - 10); updateRSVPDisplay(); }
+            if (e.code === 'ArrowRight') { e.preventDefault(); rstate.rsvpIndex = Math.min(rstate.rsvpWords.length - 1, rstate.rsvpIndex + 10); updateRSVPDisplay(); }
+        }
+        if (rstate.mode === 'flow' && rstate.fileLoaded) {
+            if (e.code === 'Space') { e.preventDefault(); flowToggle(); }
+            if (e.code === 'ArrowLeft') { e.preventDefault(); rstate.flowIndex = Math.max(0, rstate.flowIndex - 1); updateFlowDisplay(); }
+            if (e.code === 'ArrowRight') { e.preventDefault(); rstate.flowIndex = Math.min(rstate.flowLines.length - 1, rstate.flowIndex + 1); updateFlowDisplay(); }
+        }
+        if (rstate.mode === 'normal' && rstate.fileType === 'pdf' && rstate.pdfDoc) {
+            if (e.code === 'ArrowLeft' && rstate.pdfPage > 1) { rstate.pdfPage--; renderPDFPage(); }
+            if (e.code === 'ArrowRight' && rstate.pdfPage < rstate.pdfTotal) { rstate.pdfPage++; renderPDFPage(); }
+        }
+    });
+}
+function switchReaderMode(mode) {
+    rstate.mode = mode;
+    $$('#fx-reader-tabs button').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-rmode') === mode); });
+    $$('.fx-reader-mode').forEach(function(m) { m.classList.remove('active'); });
+    var target = $('#fx-reader-mode-' + mode);
+    if (target) target.classList.add('active');
+    if (mode !== 'rsvp' && rstate.rsvpPlaying) rsvpPause();
+    if (mode !== 'flow' && rstate.flowPlaying) flowPause();
+    updateStartButton();
+}
+function loadFile(file) {
+    var name = file.name, ext = name.split('.').pop().toLowerCase(), size = file.size;
+    rstate.fileName = name;
+    $('#fx-reader-filename').textContent = name;
+    $('#fx-reader-filesize').textContent = formatSize(size);
+    show($('#fx-reader-fileinfo')); hide($('#fx-reader-upload')); show($('#fx-reader-start'));
+    if (ext === 'pdf') { rstate.fileType = 'pdf'; loadPDF(file); }
+    else { rstate.fileType = 'text'; loadText(file, ext); }
+}
+function resetFile() {
+    if (rstate.rsvpPlaying) rsvpPause();
+    if (rstate.flowPlaying) flowPause();
+    rstate.fileLoaded = false; rstate.fileName = ''; rstate.fileType = '';
+    rstate.pdfDoc = null; rstate.pdfPage = 1; rstate.pdfTotal = 0;
+    rstate.rawText = ''; rstate.textLines = [];
+    rstate.rsvpWords = []; rstate.rsvpIndex = 0;
+    rstate.flowLines = []; rstate.flowIndex = 0;
+    if (rstate.readingActive) toggleFocusMode();
+    hide($('#fx-reader-fileinfo')); show($('#fx-reader-upload')); hide($('#fx-reader-start'));
+    hide($('#fx-reader-pdf-nav')); hide($('#fx-reader-pdf-canvas-wrap')); show($('#fx-reader-pdf-status'));
+    $('#fx-reader-pdf-status').textContent = 'Upload a PDF to begin reading';
+    $('#fx-reader-rsvp-display').innerHTML = '<span style="font-size:14px;color:var(--text-secondary);">Upload a file to begin</span>';
+    $('#fx-reader-rsvp-words').textContent = '0 / 0 words'; $('#fx-reader-rsvp-time').textContent = '0:00 left';
+    $('#fx-reader-rsvp-progress-bar').style.width = '0%'; $('#fx-reader-rsvp-play').textContent = '▶';
+    $('#fx-reader-flow-viewport').innerHTML = '<div class="fx-reader-status">Upload a file to begin</div>';
+    $('#fx-reader-flow-progress-bar').style.width = '0%'; $('#fx-reader-flow-play').textContent = '▶';
+    $('#fx-reader-file-input').value = '';
+}
+function loadPDF(file) {
+    var status = $('#fx-reader-pdf-status');
+    status.textContent = 'Loading PDF...';
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var typedarray = new Uint8Array(e.target.result);
+        function tryLoad() {
+            if (!window.pdfjsLib) { status.textContent = 'Loading PDF engine...'; setTimeout(tryLoad, 300); return; }
+            var loadingTask = pdfjsLib.getDocument({ data: typedarray });
+            loadingTask.promise.then(function(pdf) {
+                rstate.pdfDoc = pdf; rstate.pdfTotal = pdf.numPages; rstate.pdfPage = 1; rstate.fileLoaded = true;
+                status.textContent = ''; hide(status); show($('#fx-reader-pdf-canvas-wrap')); show($('#fx-reader-pdf-nav'));
+                renderPDFPage();
+                extractPDFText(pdf);
+            }).catch(function(err) { status.textContent = 'Failed to load PDF: ' + err.message; });
+        }
+        tryLoad();
+    };
+    reader.readAsArrayBuffer(file);
+}
+function renderPDFPage() {
+    if (!rstate.pdfDoc) return;
+    rstate.pdfDoc.getPage(rstate.pdfPage).then(function(page) {
+        var viewport = page.getViewport({ scale: rstate.pdfScale });
+        var canvas = $('#fx-reader-pdf-canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        $('#fx-reader-pdf-canvas-wrap').classList.remove('fx-hidden');
+        page.render({ canvasContext: ctx, viewport: viewport });
+        $('#fx-reader-pdf-page').textContent = rstate.pdfPage + ' / ' + rstate.pdfTotal;
+        $('#fx-reader-pdf-zoom-val').textContent = Math.round(rstate.pdfScale * 100) + '%';
+        $('#fx-reader-pdf-prev').disabled = rstate.pdfPage <= 1;
+        $('#fx-reader-pdf-next').disabled = rstate.pdfPage >= rstate.pdfTotal;
+    });
+}
+function extractPDFText(pdf) {
+    var allText = '', promises = [];
+    for (var i = 1; i <= pdf.numPages; i++) {
+        promises.push(pdf.getPage(i).then(function(page) {
+            return page.getTextContent().then(function(tc) { return tc.items.map(function(item) { return item.str; }).join(' '); });
+        }));
+    }
+    Promise.all(promises).then(function(pages) { prepareText(pages.join('\n\n')); });
+}
+function loadText(file, ext) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var text = e.target.result;
+        if (ext === 'html' || ext === 'htm') { var tmp = document.createElement('div'); tmp.innerHTML = text; text = tmp.textContent || ''; }
+        if (ext === 'epub') { var tmp2 = document.createElement('div'); tmp2.innerHTML = text.replace(/<[^>]+>/g, ' '); text = tmp2.textContent || ''; }
+        rstate.rawText = text; rstate.fileLoaded = true;
+        prepareText(text);
+        hide($('#fx-reader-pdf-canvas-wrap')); hide($('#fx-reader-pdf-nav'));
+        var status = $('#fx-reader-pdf-status'); status.textContent = 'Switch to RSVP or Flow mode to read this file'; show(status);
+        var wrap = $('#fx-reader-pdf-wrap');
+        var existing = wrap.querySelector('.fx-reader-text-preview'); if (existing) existing.remove();
+        var preview = document.createElement('div'); preview.className = 'fx-reader-text-preview';
+        preview.textContent = text.substring(0, 5000) + (text.length > 5000 ? '\n\n...[truncated preview]' : '');
+        wrap.appendChild(preview);
+    };
+    reader.readAsText(file);
+}
+function prepareText(text) {
+    rstate.rawText = text;
+    rstate.textLines = text.split(/\n/).filter(function(l) { return l.trim().length > 0; });
+    var wrapped = [];
+    rstate.textLines.forEach(function(line) {
+        if (line.length > 80) {
+            var words = line.split(/\s+/), current = '';
+            words.forEach(function(w) {
+                if ((current + ' ' + w).trim().length > 80) { if (current.trim()) wrapped.push(current.trim()); current = w; }
+                else { current = current ? current + ' ' + w : w; }
+            });
+            if (current.trim()) wrapped.push(current.trim());
+        } else { wrapped.push(line); }
+    });
+    rstate.flowLines = wrapped;
+    rstate.rsvpWords = text.split(/\s+/).filter(function(w) { return w.trim().length > 0; });
+    rstate.rsvpIndex = 0; rstate.flowIndex = 0;
+    updateRSVPDisplay(); updateFlowDisplay(); updateRSVPTimeEstimate();
+}
+function toggleFocusMode() {
+    rstate.readingActive = !rstate.readingActive;
+    var panel = $('#panel-reader');
+    if (rstate.readingActive) panel.classList.add('reader-focused');
+    else panel.classList.remove('reader-focused');
+    updateStartButton();
+}
+function updateStartButton() {
+    var btn = $('#fx-reader-start');
+    if (!rstate.fileLoaded) { hide(btn); return; }
+    show(btn);
+    if (rstate.readingActive) { btn.textContent = '✕ Exit Focus Mode'; btn.style.background = 'rgba(239,68,68,0.8)'; }
+    else { btn.textContent = '▶ Start Reading'; btn.style.background = ''; }
+}
+function rsvpToggle() { if (!rstate.fileLoaded || rstate.rsvpWords.length === 0) return; if (rstate.rsvpPlaying) rsvpPause(); else rsvpPlay(); }
+function rsvpPlay() { rstate.rsvpPlaying = true; $('#fx-reader-rsvp-play').textContent = '⏸'; rsvpTick(); }
+function rsvpPause() { rstate.rsvpPlaying = false; $('#fx-reader-rsvp-play').textContent = '▶'; if (rstate.rsvpTimer) { clearTimeout(rstate.rsvpTimer); rstate.rsvpTimer = null; } }
+function rsvpTick() {
+    if (!rstate.rsvpPlaying || rstate.rsvpIndex >= rstate.rsvpWords.length) {
+        if (rstate.rsvpIndex >= rstate.rsvpWords.length) { rstate.rsvpPlaying = false; $('#fx-reader-rsvp-play').textContent = '▶'; }
+        return;
+    }
+    updateRSVPDisplay(); rstate.rsvpIndex++;
+    var word = rstate.rsvpWords[rstate.rsvpIndex - 1] || '';
+    var interval = 60000 / rstate.rsvpWPM;
+    if (/[.!?]$/.test(word)) interval *= 2.0;
+    else if (/[,;:]$/.test(word)) interval *= 1.5;
+    else if (/[-–—]$/.test(word)) interval *= 1.3;
+    rstate.rsvpTimer = setTimeout(rsvpTick, interval);
+}
+function updateRSVPDisplay() {
+    if (!rstate.fileLoaded || rstate.rsvpWords.length === 0) return;
+    var word = rstate.rsvpWords[rstate.rsvpIndex] || '';
+    var display = $('#fx-reader-rsvp-display');
+    display.innerHTML = highlightORP(word);
+    var pct = (rstate.rsvpIndex / rstate.rsvpWords.length) * 100;
+    $('#fx-reader-rsvp-progress-bar').style.width = pct + '%';
+    $('#fx-reader-rsvp-words').textContent = (rstate.rsvpIndex + 1) + ' / ' + rstate.rsvpWords.length + ' words';
+    updateRSVPTimeEstimate();
+}
+function updateRSVPTimeEstimate() {
+    if (!rstate.fileLoaded) return;
+    var remaining = rstate.rsvpWords.length - rstate.rsvpIndex;
+    var seconds = Math.round((remaining / rstate.rsvpWPM) * 60);
+    var min = Math.floor(seconds / 60), sec = seconds % 60;
+    $('#fx-reader-rsvp-time').textContent = min + ':' + (sec < 10 ? '0' : '') + sec + ' left';
+}
+function highlightORP(word) {
+    if (!word) return '';
+    var escape = function(s) { var d = document.createElement('span'); d.textContent = s; return d.innerHTML; };
+    if (word.length <= 1) return '<span class="rsvp-word">' + escape(word) + '</span>';
+    var orpPos;
+    if (word.length <= 3) orpPos = Math.min(1, word.length - 1);
+    else if (word.length <= 6) orpPos = Math.floor(word.length * 0.4);
+    else orpPos = Math.floor(word.length * 0.35);
+    var orpChar = word[orpPos];
+    if (/[.,;:!?'")]/.test(orpChar) && orpPos > 0) orpPos--;
+    return '<span class="rsvp-word">' + escape(word.slice(0, orpPos)) + '<span class="rsvp-orp">' + escape(word[orpPos]) + '</span>' + escape(word.slice(orpPos + 1)) + '</span>';
+}
+function flowToggle() { if (!rstate.fileLoaded || rstate.flowLines.length === 0) return; if (rstate.flowPlaying) flowPause(); else flowPlay(); }
+function flowPlay() { rstate.flowPlaying = true; $('#fx-reader-flow-play').textContent = '⏸'; flowTick(); }
+function flowPause() { rstate.flowPlaying = false; $('#fx-reader-flow-play').textContent = '▶'; if (rstate.flowTimer) { clearTimeout(rstate.flowTimer); rstate.flowTimer = null; } }
+function flowTick() {
+    if (!rstate.flowPlaying || rstate.flowIndex >= rstate.flowLines.length) {
+        if (rstate.flowIndex >= rstate.flowLines.length) { rstate.flowPlaying = false; $('#fx-reader-flow-play').textContent = '▶'; }
+        return;
+    }
+    updateFlowDisplay(); rstate.flowIndex++;
+    var line = rstate.flowLines[rstate.flowIndex - 1] || '';
+    var baseSpeed = rstate.flowSpeed * 1000;
+    var lengthFactor = Math.max(1, line.length / 60);
+    var interval = baseSpeed * lengthFactor;
+    if (/[.!?]$/.test(line.trim())) interval *= 1.3;
+    rstate.flowTimer = setTimeout(flowTick, interval);
+}
+function updateFlowDisplay() {
+    if (!rstate.fileLoaded || rstate.flowLines.length === 0) return;
+    var viewport = $('#fx-reader-flow-viewport');
+    var idx = rstate.flowIndex, lines = rstate.flowLines, total = lines.length;
+    var html = '';
+    var positions = [{offset:-3,cls:'flow-far'},{offset:-2,cls:'flow-prev'},{offset:-1,cls:'flow-prev'},{offset:0,cls:'flow-current'},{offset:1,cls:'flow-next'},{offset:2,cls:'flow-next'},{offset:3,cls:'flow-far'}];
+    positions.forEach(function(pos) {
+        var li = idx + pos.offset;
+        if (li >= 0 && li < total) html += '<div class="fx-reader-flow-line ' + pos.cls + '">' + escapeHTML(lines[li]) + '</div>';
+        else html += '<div class="fx-reader-flow-line flow-far" style="opacity:0;">&nbsp;</div>';
+    });
+    viewport.innerHTML = html;
+    var pct = ((idx + 1) / total) * 100;
+    $('#fx-reader-flow-progress-bar').style.width = pct + '%';
+}
+function escapeHTML(str) { var d = document.createElement('span'); d.textContent = str; return d.innerHTML; }
+function formatSize(bytes) { if (bytes < 1024) return bytes + ' B'; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'; return (bytes / 1048576).toFixed(1) + ' MB'; }
+
+// Hook into panel open
+if (window.Fixate && window.Fixate.openPanel) {
+    var _origFixateOpenForReader = window.Fixate.openPanel;
+    window.Fixate.openPanel = function(name) {
+        _origFixateOpenForReader(name);
+        if (name === 'reader') initReader();
+    };
+} else {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initReader);
+    else initReader();
+}
+window.FixateReader = { init: initReader, reset: resetFile };
+})();
+
+/* ═══════════════════════════════
+   INIT
+   ═══════════════════════════════ */
+function init() {
+    initGreeting();
+    wireEvents();
+
+    // Restore last intent
+    var lastIntent = localStorage.getItem('fixate-last-intent');
+    if (lastIntent) $('#fx-intent-input').value = lastIntent;
+
+    // Load stats goal
+    var goal = parseInt(localStorage.getItem('fx_daily_goal') || '120');
+    $('#fx-stats-goal-input').value = goal;
+
+    // Session goal update
+    session._updateGoal();
+
+    // Video background
+    videoBg.init();
+
+    // Initial display
+    updateTimerDisplay();
+    updateTimerRing();
+
+    // Update planner now-hour indicator every minute
+    setInterval(function() { calendar._renderPlanner(); }, 60000);
+
+    // Update stats every 30s
+    setInterval(refreshStatsPanel, 30000);
+
+    // Settings panel
+    settings.init();
+
+    console.log('[Fixate] Dashboard initialized (vanilla JS)');
+}
+
+// Run on DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+    // Expose panel API globally for inline onclick handlers
+    window.Fixate = { openPanel: openPanel, closePanel: closePanel };
+
+    // ── Enhanced Stats: session logging & panel refresh ──
+})();
+</script>
+<script src="{% static 'js/stats-enhanced.js' %}"></script>
+<script src="{% static 'js/tasks-panel.js' %}"></script>
+<script src="{% static 'js/coworking-client.js' %}"></script>
 {% endblock %}

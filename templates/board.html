@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Brain Map — Fixate{% endblock %}
+
+{% block extra_css %}
+<style>
+body.board-page { overflow: hidden; }
+
+.board-toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    z-index: 20;
+}
+
+.board-toolbar h2 { font-size: 16px; margin-right: auto; }
+.board-toolbar nav a { color: var(--text-secondary); text-decoration: none; font-size: 13px; }
+.board-toolbar nav a:hover { color: var(--accent); }
+
+.board-toolbar button {
+    padding: 6px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.board-toolbar button:hover { border-color: var(--accent); }
+.board-toolbar button.active { background: rgba(99,102,241,0.12); border-color: var(--accent); color: var(--accent); }
+
+.board-canvas {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-primary);
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 30px 30px;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.board-canvas.dragging { cursor: grabbing; }
+.board-canvas.connecting { cursor: crosshair; }
+
+/* Cards */
+.board-card {
+    position: absolute;
+    min-width: 180px;
+    max-width: 300px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    cursor: grab;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: box-shadow 0.15s, border-color 0.15s;
+    z-index: 10;
+}
+
+.board-card:hover { box-shadow: 0 4px 16px rgba(99,102,241,0.15); }
+.board-card.dragging-card { opacity: 0.7; z-index: 50; cursor: grabbing; }
+.board-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+
+.board-card .card-source {
+    font-size: 10px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    margin-top: 6px;
+}
+
+.board-card .card-delete {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.board-card:hover .card-delete { opacity: 0.5; }
+.board-card .card-delete:hover { opacity: 1; color: #ef4444; }
+
+/* Connection lines */
+.board-connections {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.board-connections line {
+    stroke: var(--accent);
+    stroke-width: 2;
+    opacity: 0.4;
+}
+
+/* Add highlight panel */
+.board-sidebar {
+    position: fixed;
+    right: 0;
+    top: 48px;
+    bottom: 0;
+    width: 280px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    z-index: 15;
+    transition: transform 0.25s;
+}
+
+.board-sidebar.hidden { transform: translateX(100%); }
+
+.board-sidebar h4 {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.board-sidebar-item {
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: grab;
+    transition: all 0.15s;
+}
+
+.board-sidebar-item:hover { color: var(--text-primary); border-color: var(--accent); }
+.board-sidebar-item:active { cursor: grabbing; }
+
+.board-sidebar-item .doc-label {
+    font-size: 10px;
+    color: var(--accent);
+    opacity: 0.6;
+}
+</style>
+{% endblock %}
+
+{% block body_class %}board-page{% endblock %}
+
+{% block content %}
+<div class="board-toolbar">
+    <h2>🧠 Brain Map</h2>
+    <button :class="{ active: mode === 'select' }" @click="mode = 'select'">🖐 Select</button>
+    <button :class="{ active: mode === 'connect' }" @click="mode = 'connect'">🔗 Connect</button>
+    <button @click="clearBoard()">🗑 Clear</button>
+    <button @click="saveBoard()">💾 Save</button>
+    <button @click="sidebarOpen = !sidebarOpen" :class="{ active: sidebarOpen }">📋 Add Cards</button>
+    <nav style="margin-left:12px;">
+        <a href="{% url 'dashboard' %}">← Library</a>
+    </nav>
+</div>
+
+<div class="board-canvas" 
+     x-data="brainMapApp()" x-init="init()"
+     @mousedown="onCanvasMouseDown($event)"
+     @mousemove="onCanvasMouseMove($event)"
+     @mouseup="onCanvasMouseUp($event)"
+     :class="{ dragging: panning, connecting: mode === 'connect' }">
+
+    <!-- Connection SVG layer -->
+    <svg class="board-connections" x-ref="connectionsLayer">
+        <template x-for="(conn, idx) in connections" :key="idx">
+            <line :x1="conn.x1" :y1="conn.y1" :x2="conn.x2" :y2="conn.y2" />
+        </template>
+        <line x-show="connectingFrom" :x1="connectingFrom?.x" :y1="connectingFrom?.y" 
+              :x2="connectLineX" :y2="connectLineY" stroke-dasharray="5,5" />
+    </svg>
+
+    <!-- Cards -->
+    <template x-for="card in cards" :key="card.id">
+        <div class="board-card"
+             :class="{ selected: selectedCard === card.id, 'dragging-card': draggingId === card.id }"
+             :style="'left:' + card.x + 'px; top:' + card.y + 'px;'"
+             @mousedown.stop="onCardMouseDown($event, card)"
+             @dblclick="editCard(card)">
+            <span class="card-delete" @click.stop="deleteCard(card.id)">×</span>
+            <span x-text="card.text.length > 200 ? card.text.substring(0, 200) + '...' : card.text"></span>
+            <div class="card-source" x-text="card.docTitle"></div>
+        </div>
+    </template>
+</div>
+
+<!-- Sidebar: Drag highlights onto canvas -->
+<aside class="board-sidebar" :class="{ hidden: !sidebarOpen }">
+    <h4>Your Highlights</h4>
+    <template x-for="h in highlights" :key="h.id">
+        <div class="board-sidebar-item"
+             draggable="true"
+             @dragstart="onSidebarDragStart($event, h)"
+             @dragend="onSidebarDragEnd($event)">
+            <span x-text="h.text.substring(0, 100)"></span>
+            <div class="doc-label" x-text="h.document_title"></div>
+        </div>
+    </template>
+    <p style="font-size:11px;color:var(--text-secondary);margin-top:8px;" x-show="highlights.length === 0">
+        No highlights yet. Start reading and highlight passages.
+    </p>
+</aside>
+
+<script>
+function brainMapApp() {
+    return {
+        cards: [],
+        connections: [],
+        highlights: [],
+        sidebarOpen: true,
+        mode: 'select', // 'select' | 'connect'
+        selectedCard: null,
+        connectingFrom: null,
+        connectLineX: 0,
+        connectLineY: 0,
+        draggingId: null,
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        panning: false,
+        panStartX: 0,
+        panStartY: 0,
+        panScrollX: 0,
+        panScrollY: 0,
+
+        init() {
+            this.loadBoard();
+            this.loadHighlights();
+        },
+
+        async loadHighlights() {
+            try {
+                const resp = await fetch('/api/reader/highlights/', {
+                    headers: { 'X-CSRFToken': this._csrf() }
+                });
+                if (resp.ok) this.highlights = await resp.json();
+            } catch(e) {}
+        },
+
+        loadBoard() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('fixate-brain-map') || '{}');
+                this.cards = saved.cards || [];
+                this.connections = saved.connections || [];
+            } catch(e) {
+                this.cards = [];
+                this.connections = [];
+            }
+        },
+
+        saveBoard() {
+            localStorage.setItem('fixate-brain-map', JSON.stringify({
+                cards: this.cards,
+                connections: this.connections,
+            }));
+            alert('Board saved!');
+        },
+
+        clearBoard() {
+            if (!confirm('Clear the entire board?')) return;
+            this.cards = [];
+            this.connections = [];
+            this.saveBoard();
+        },
+
+        // Canvas panning
+        onCanvasMouseDown(e) {
+            if (this.mode === 'connect' && this.selectedCard) {
+                // Start connection line from selected card center
+                const card = this.cards.find(c => c.id === this.selectedCard);
+                if (card) {
+                    this.connectingFrom = { x: card.x + 90, y: card.y + 30, cardId: card.id };
+                }
+                return;
+            }
+            this.panning = true;
+            this.panStartX = e.clientX;
+            this.panStartY = e.clientY;
+        },
+
+        onCanvasMouseMove(e) {
+            if (this.connectingFrom) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                this.connectLineX = e.clientX - rect.left;
+                this.connectLineY = e.clientY - rect.top;
+                return;
+            }
+            if (this.draggingId) {
+                const card = this.cards.find(c => c.id === this.draggingId);
+                if (card) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    card.x = e.clientX - rect.left - this.dragOffsetX;
+                    card.y = e.clientY - rect.top - this.dragOffsetY;
+                }
+                return;
+            }
+            if (this.panning) {
+                const dx = e.clientX - this.panStartX;
+                const dy = e.clientY - this.panStartY;
+                this.panStartX = e.clientX;
+                this.panStartY = e.clientY;
+                this.panScrollX += dx;
+                this.panScrollY += dy;
+            }
+        },
+
+        onCanvasMouseUp(e) {
+            if (this.connectingFrom && this.mode === 'connect') {
+                // Check if dropped on a card
+                const targetCard = this.cards.find(c => {
+                    const cx = c.x + 90;
+                    const cy = c.y + 30;
+                    const dx = cx - this.connectLineX;
+                    const dy = cy - this.connectLineY;
+                    return Math.sqrt(dx*dx + dy*dy) < 60 && c.id !== this.connectingFrom.cardId;
+                });
+                if (targetCard) {
+                    this.connections.push({
+                        x1: this.connectingFrom.x,
+                        y1: this.connectingFrom.y,
+                        x2: targetCard.x + 90,
+                        y2: targetCard.y + 30,
+                        from: this.connectingFrom.cardId,
+                        to: targetCard.id,
+                    });
+                }
+                this.connectingFrom = null;
+                return;
+            }
+            this.panning = false;
+            this.draggingId = null;
+        },
+
+        // Card dragging
+        onCardMouseDown(e, card) {
+            if (this.mode === 'connect') {
+                this.selectedCard = this.selectedCard === card.id ? null : card.id;
+                return;
+            }
+            this.draggingId = card.id;
+            this.selectedCard = card.id;
+            const rect = e.currentTarget.getBoundingClientRect();
+            this.dragOffsetX = e.clientX - rect.left;
+            this.dragOffsetY = e.clientY - rect.top;
+        },
+
+        // Sidebar: drag highlight onto canvas
+        onSidebarDragStart(e, highlight) {
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+                text: highlight.text,
+                docTitle: highlight.document_title,
+                startIndex: highlight.start_index,
+            }));
+        },
+
+        onSidebarDragEnd(e) {
+            // No-op
+        },
+
+        // Allow dropping on canvas
+        get boardCanvas() { return document.querySelector('.board-canvas'); },
+
+        editCard(card) {
+            const newText = prompt('Edit card text:', card.text);
+            if (newText !== null) {
+                card.text = newText;
+                this.saveBoard();
+            }
+        },
+
+        deleteCard(cardId) {
+            this.cards = this.cards.filter(c => c.id !== cardId);
+            this.connections = this.connections.filter(c => c.from !== cardId && c.to !== cardId);
+            if (this.selectedCard === cardId) this.selectedCard = null;
+            this.saveBoard();
+        },
+
+        _csrf() {
+            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        },
+    }
+}
+
+// Global drop handler for sidebar drags onto board
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+    e.preventDefault();
+    const board = document.querySelector('.board-canvas');
+    if (!board) return;
+    const app = board.__x?.$data;
+    if (!app) return;
+
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const rect = board.getBoundingClientRect();
+        app.cards.push({
+            id: Date.now(),
+            text: data.text,
+            docTitle: data.docTitle,
+            x: e.clientX - rect.left - 90,
+            y: e.clientY - rect.top,
+        });
+        app.saveBoard();
+    } catch(ex) {}
+});
+</script>
+{% endblock %}

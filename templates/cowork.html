@@ -1,0 +1,975 @@
+{% extends "base.html" %}
+
+{% block title %}Focus Room — Fixate{% endblock %}
+
+{% block body_class %}cowork-page{% endblock %}
+
+{% block content %}
+<div class="cowork-shell" x-data="coworkApp()" x-init="init()">
+    <!-- ── Video Background Layer ── -->
+    <div id="video-bg-layer">
+        <div id="video-bg-container"></div>
+    </div>
+    <div id="video-bg-overlay"></div>
+
+    <!-- ── Top Bar ── -->
+    <header class="cowork-topbar">
+        <a href="{% url 'dashboard' %}" class="cowork-logo">Fixate</a>
+        <div class="cowork-topbar-right">
+            <span class="cowork-time" x-text="timeString"></span>
+            <span class="user-email">{{ request.user.email }}</span>
+        </div>
+    </header>
+
+    <!-- ── Main Layout ── -->
+    <div class="cowork-main">
+        <!-- Left Sidebar -->
+        <nav class="cowork-sidebar">
+            <button class="sidebar-icon"
+                    :class="{ active: activePanel === null }"
+                    @click="activePanel = null"
+                    title="Focus">
+                🧠
+            </button>
+            <button class="sidebar-icon"
+                    :class="{ active: activePanel === 'background' }"
+                    @click="togglePanel('background')"
+                    title="Background">
+                🎬
+            </button>
+            <button class="sidebar-icon"
+                    :class="{ active: activePanel === 'music' }"
+                    @click="togglePanel('music')"
+                    title="Music">
+                🎵
+            </button>
+            <button class="sidebar-icon"
+                    :class="{ active: activePanel === 'tasks' }"
+                    @click="togglePanel('tasks')"
+                    title="Tasks">
+                📋
+            </button>
+            <button class="sidebar-icon"
+                    :class="{ active: activePanel === 'notes' }"
+                    @click="togglePanel('notes')"
+                    title="Notes">
+                📝
+            </button>
+            <button class="sidebar-icon"
+                    :class="{ active: activePanel === 'rooms' }"
+                    @click="togglePanel('rooms')"
+                    title="Rooms">
+                🏠
+            </button>
+
+            <div class="sidebar-spacer"></div>
+
+            <!-- Center opacity slider -->
+            <div class="sidebar-opacity" x-show="videoActive">
+                <input type="range" orient="vertical"
+                       min="0.3" max="1" step="0.05"
+                       :value="centerOpacity"
+                       @input="setCenterOpacity($event.target.value)">
+            </div>
+        </nav>
+
+        <!-- Center Area -->
+        <div class="cowork-center" :style="{ opacity: centerOpacity }">
+            <!-- Focus / empty state -->
+            <div class="focus-state" x-show="!readerOpen">
+                <div class="focus-greeting">
+                    <h2>{{ greeting_emoji }} {{ greeting }}{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}</h2>
+                    <p class="focus-quote">"{{ daily_quote.text }}"</p>
+                    <p class="focus-author">— {{ daily_quote.author }}</p>
+                </div>
+
+                <div class="focus-actions">
+                    <a href="{% url 'dashboard' %}" class="btn-primary">📄 Open a Document</a>
+                </div>
+
+                <!-- Quick tasks peek -->
+                <div class="focus-peek" x-show="quickTasks.length > 0">
+                    <h4>Today's Tasks</h4>
+                    <template x-for="t in quickTasks" :key="t.id">
+                        <div class="peek-task">
+                            <span class="peek-dot" :style="{ background: t.priority_color }"></span>
+                            <span x-text="t.title"></span>
+                            <span class="peek-status" x-text="t.status === 'doing' ? '⚡' : ''"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Reader (placeholder — opens in full reader page for now) -->
+            <div class="focus-state" x-show="readerOpen">
+                <p>Reading session active. <a :href="readerUrl">Open full reader →</a></p>
+            </div>
+
+            <!-- ── Room Mode (C6) ── -->
+            <div class="room-center" x-show="activeRoom" x-data="coworkRoom()" x-init="init()">
+                <div class="room-header">
+                    <div>
+                        <h2 x-text="activeRoom.name"></h2>
+                        <span class="room-code">Code: <strong x-text="activeRoom.code"></strong></span>
+                    </div>
+                    <button class="btn-sm ghost" @click="leaveRoom()">Leave</button>
+                </div>
+
+                <!-- Presence bar -->
+                <div class="room-presence">
+                    <template x-for="p in presence" :key="p.id">
+                        <span class="presence-dot" :title="p.name">
+                            <span class="presence-avatar" x-text="p.name[0].toUpperCase()"></span>
+                            <span class="presence-name" x-text="p.name"></span>
+                        </span>
+                    </template>
+                    <span class="presence-count" x-show="presence.length === 0">Just you</span>
+                </div>
+
+                <!-- Pomodoro Timer -->
+                <div class="room-timer" :class="{ running: timer.running, overtime: timerRemaining <= 0 && timer.running }">
+                    <div class="timer-display" x-text="formatTimer(timerRemaining)"></div>
+                    <div class="timer-controls">
+                        <button class="timer-btn" @click="startTimer()" x-show="!timer.running">▶ Start</button>
+                        <button class="timer-btn" @click="pauseTimer()" x-show="timer.running">⏸ Pause</button>
+                        <button class="timer-btn" @click="resetTimer()">↺ Reset</button>
+                    </div>
+                    <div class="timer-presets">
+                        <button class="timer-preset" :class="{ active: timer.duration === 25*60 }" @click="setDuration(25*60)">25 min</button>
+                        <button class="timer-preset" :class="{ active: timer.duration === 45*60 }" @click="setDuration(45*60)">45 min</button>
+                        <button class="timer-preset" :class="{ active: timer.duration === 10*60 }" @click="setDuration(10*60)">10 min</button>
+                    </div>
+                </div>
+
+                <!-- Chat messages -->
+                <div class="room-chat" x-ref="chatScroll">
+                    <template x-for="msg in messages" :key="msg.id || msg.content + msg.created_at">
+                        <div class="chat-msg">
+                            <strong x-text="msg.user?.name || msg.user_name || 'Unknown'"></strong>
+                            <span x-text="msg.content"></span>
+                        </div>
+                    </template>
+                    <div class="chat-empty" x-show="messages.length === 0">No messages yet. Say hi!</div>
+                </div>
+
+                <!-- Chat input -->
+                <div class="room-chat-input">
+                    <input type="text" placeholder="Type a message..."
+                           @keyup.enter="sendMessage($event)" maxlength="500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="cowork-panel" :class="{ open: activePanel !== null }">
+            <!-- ── Background Panel ── -->
+            <div class="panel-content" x-show="activePanel === 'background'" x-data="coworkBackground()" x-init="init()">
+                <div class="panel-header">
+                    <h3>Background Video</h3>
+                    <button class="panel-close" @click="$dispatch('close-panel')">✕</button>
+                </div>
+
+                <div class="bg-preset-grid-sm">
+                    <template x-for="p in presets" :key="p.id">
+                        <button class="bg-preset-btn-sm"
+                                :class="{ active: isActive(p.id) }"
+                                @click="activate(p)">
+                            <span class="preset-emoji" x-text="p.thumbnail"></span>
+                            <span x-text="p.name"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <div class="panel-section-label">Or paste a link</div>
+                <div class="panel-input-row">
+                    <input type="text" x-model="customUrl"
+                           @keyup.enter="setCustomUrl()"
+                           placeholder="YouTube / Vimeo URL...">
+                    <button class="btn-sm" @click="setCustomUrl()">Set</button>
+                </div>
+                <div class="bg-parse-error" x-text="parseError" x-show="parseError"></div>
+
+                <div class="panel-section-label">Overlay darkness</div>
+                <div class="panel-slider-row">
+                    <input type="range" min="0.2" max="0.85" step="0.05"
+                           :value="opacity" @input="setOpacity($event.target.value)">
+                    <span x-text="Math.round(opacity * 100) + '%'"></span>
+                </div>
+
+                <button class="btn-sm ghost" @click="clear()" x-show="active" style="margin-top:12px">Remove background</button>
+            </div>
+
+            <!-- ── Music Panel ── -->
+            <div class="panel-content" x-show="activePanel === 'music'" x-data="coworkMusic()" x-init="init()">
+                <div class="panel-header">
+                    <h3>Music</h3>
+                    <button class="panel-close" @click="$dispatch('close-panel')">✕</button>
+                </div>
+
+                <div class="panel-section-label">Paste a Spotify link</div>
+                <div class="panel-input-row">
+                    <input type="text" x-model="spotifyUrl"
+                           @keyup.enter="loadSpotify()"
+                           placeholder="Playlist, album, or track URL...">
+                    <button class="btn-sm" @click="loadSpotify()">Load</button>
+                </div>
+                <div class="bg-parse-error" x-text="spotifyError" x-show="spotifyError"></div>
+
+                <!-- Spotify Embed -->
+                <div class="spotify-embed" x-show="spotifySrc" x-html="spotifySrc"></div>
+
+                <!-- Preset suggestions -->
+                <div class="panel-section-label" x-show="!spotifySrc">Suggested</div>
+                <div class="music-presets" x-show="!spotifySrc">
+                    <button class="music-preset-btn" @click="loadPreset('playlist/37i9dQZF1DWZeKCadgRdKQ')">
+                        🎧 Deep Focus
+                    </button>
+                    <button class="music-preset-btn" @click="loadPreset('playlist/37i9dQZF1DX4WYpdgoIcn6')">
+                        🍃 Chill Lofi
+                    </button>
+                    <button class="music-preset-btn" @click="loadPreset('playlist/37i9dQZF1DWX3387IZmjNa')">
+                        🌧 Rain Sounds
+                    </button>
+                    <button class="music-preset-btn" @click="loadPreset('playlist/37i9dQZF1DX3Ogo9pFvBkY')">
+                        🎹 Ambient Relaxation
+                    </button>
+                    <button class="music-preset-btn" @click="loadPreset('playlist/37i9dQZF1DXcBWIGoYBM5M')">
+                        🎼 Classical Focus
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── Tasks Panel ── -->
+            <div class="panel-content" x-show="activePanel === 'tasks'" x-data="coworkTasks()" x-init="loadTasks()">
+                <div class="panel-header">
+                    <h3>Tasks</h3>
+                    <button class="panel-close" @click="$dispatch('close-panel')">✕</button>
+                </div>
+
+                <template x-for="col in columns" :key="col.id">
+                    <div class="panel-kanban-col">
+                        <div class="panel-col-header">
+                            <span x-text="col.emoji + ' ' + col.label"></span>
+                            <span class="column-count" x-text="tasksInCol(col.id).length"></span>
+                        </div>
+
+                        <div class="panel-col-add">
+                            <input type="text" placeholder="+ Add..."
+                                   @keyup.enter="addTask($event, col.id)" maxlength="200">
+                        </div>
+
+                        <template x-for="task in tasksInCol(col.id)" :key="task.id">
+                            <div class="panel-kanban-card"
+                                 :style="{ borderLeftColor: task.priority_color }">
+                                <span class="pk-title"
+                                      :contenteditable="editingId === task.id"
+                                      @dblclick="startEdit(task)"
+                                      @blur="saveEdit(task, $event)"
+                                      @keydown.enter.prevent="$event.target.blur()"
+                                      x-text="task.title">
+                                </span>
+                                <div class="pk-meta">
+                                    <button class="pk-priority"
+                                            :style="{ color: task.priority_color }"
+                                            @click="cyclePriority(task)"
+                                            x-text="task.priority">
+                                    </button>
+                                    <select @change="moveTask(task, $event.target.value); $event.target.value = ''"
+                                            class="pk-move">
+                                        <option value="">Move</option>
+                                        <option value="todo">To Do</option>
+                                        <option value="doing">Doing</option>
+                                        <option value="done">Done</option>
+                                    </select>
+                                    <button class="pk-delete" @click="deleteTask(task)">×</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <a href="{% url 'kanban' %}" class="panel-full-link">Open full board →</a>
+            </div>
+
+            <!-- ── Notes Panel ── -->
+            <div class="panel-content" x-show="activePanel === 'notes'" x-data="coworkNotes()" x-init="loadNotes()">
+                <div class="panel-header">
+                    <h3>Notes</h3>
+                    <button class="panel-close" @click="$dispatch('close-panel')">✕</button>
+                </div>
+
+                <div class="panel-col-add" style="margin-bottom:12px">
+                    <input type="text" placeholder="Quick note..."
+                           @keyup.enter="addNote($event)" maxlength="200">
+                </div>
+
+                <template x-for="note in notes" :key="note.id">
+                    <div class="pn-card" :style="{ background: note.color_hex, borderColor: note.color_border }"
+                         @click="note._expanded = !note._expanded">
+                        <div class="pn-title" x-text="note.title || 'Untitled'"></div>
+                        <div class="pn-body" x-show="note._expanded" x-text="note.body || 'Empty'"></div>
+                        <div class="pn-meta" x-show="note._expanded">
+                            <span class="pn-time" x-text="formatDate(note.updated_at)"></span>
+                            <button class="pk-delete" @click.stop="deleteNote(note)">×</button>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="panel-empty" x-show="notes.length === 0">No notes yet</div>
+                <a href="{% url 'sticky-notes' %}" class="panel-full-link">Open full notes →</a>
+            </div>
+
+            <!-- ── Rooms Panel ── -->
+            <div class="panel-content" x-show="activePanel === 'rooms'" x-data="coworkRoomsPanel()">
+                <div class="panel-header">
+                    <h3>Co-working Rooms</h3>
+                    <button class="panel-close" @click="$dispatch('close-panel')">✕</button>
+                </div>
+
+                <!-- Create room -->
+                <div class="panel-section-label">Create a room</div>
+                <div class="panel-input-row">
+                    <input type="text" x-model="newRoomName" placeholder="Room name..."
+                           @keyup.enter="createRoom()" maxlength="100">
+                    <button class="btn-sm" @click="createRoom()">Create</button>
+                </div>
+
+                <!-- Join by code -->
+                <div class="panel-section-label">Join by code</div>
+                <div class="panel-input-row">
+                    <input type="text" x-model="joinCode" placeholder="6-letter code..."
+                           @keyup.enter="joinRoom()" maxlength="6"
+                           style="text-transform:uppercase">
+                    <button class="btn-sm" @click="joinRoom()">Join</button>
+                </div>
+                <div class="bg-parse-error" x-text="roomError" x-show="roomError"></div>
+
+                <!-- My rooms -->
+                <div class="panel-section-label" x-show="myRooms.length > 0">My rooms</div>
+                <template x-for="room in myRooms" :key="room.id">
+                    <div class="room-list-item" @click="enterRoom(room)">
+                        <div>
+                            <strong x-text="room.name"></strong>
+                            <span class="room-list-code" x-text="room.code"></span>
+                        </div>
+                        <span class="room-list-count" x-text="room.participant_count + ' online'"></span>
+                    </div>
+                </template>
+                <div class="panel-empty" x-show="myRooms.length === 0">No rooms yet. Create or join one!</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ═══════════════════════════════════════════════
+// TOP-LEVEL COWORK APP
+// ═══════════════════════════════════════════════
+function coworkApp() {
+    return {
+        activePanel: null,
+        centerOpacity: 0.9,
+        videoActive: false,
+        readerOpen: false,
+        readerUrl: '',
+        timeString: '',
+        quickTasks: [],
+
+        init() {
+            this.updateTime();
+            setInterval(() => this.updateTime(), 30000);
+            this.loadQuickTasks();
+            this.checkVideoActive();
+        },
+
+        updateTime() {
+            this.timeString = new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit',
+            });
+        },
+
+        togglePanel(name) {
+            this.activePanel = this.activePanel === name ? null : name;
+        },
+
+        setCenterOpacity(val) {
+            this.centerOpacity = parseFloat(val);
+        },
+
+        checkVideoActive() {
+            const saved = JSON.parse(localStorage.getItem('fixate-video-bg') || '{}');
+            this.videoActive = !!saved.active;
+        },
+
+        async loadQuickTasks() {
+            try {
+                const res = await fetch('/api/reader/tasks/');
+                const tasks = await res.json();
+                this.quickTasks = tasks
+                    .filter(t => t.status === 'doing' || t.status === 'todo')
+                    .slice(0, 5);
+            } catch (e) {}
+        },
+    };
+}
+
+// ═══════════════════════════════════════════════
+// BACKGROUND PANEL (inline copy of video-background.js)
+// ═══════════════════════════════════════════════
+function coworkBackground() {
+    return {
+        presets: [
+            { id: 'bali', name: 'Bali', thumbnail: '🌴', videoId: 'lzjruXO0Fvc', platform: 'youtube', location: 'Rice Terraces' },
+            { id: 'nyc', name: 'NYC', thumbnail: '🌃', videoId: 'BbPiuO8NAdE', platform: 'youtube', location: 'Skyline' },
+            { id: 'tokyo', name: 'Tokyo', thumbnail: '🗼', videoId: '0nTO4zSEpOs', platform: 'youtube', location: 'Shibuya' },
+            { id: 'alps', name: 'Alps', thumbnail: '🏔️', videoId: 'BTMjD7_evjE', platform: 'youtube', location: 'Swiss' },
+            { id: 'aurora', name: 'Aurora', thumbnail: '🌌', videoId: 'v5RGH0SmKJY', platform: 'youtube', location: 'Lights' },
+            { id: 'beach', name: 'Beach', thumbnail: '🏝️', videoId: 'dEep6DAv_xs', platform: 'youtube', location: 'Bali' },
+            { id: 'rain', name: 'Rain', thumbnail: '☕', videoId: 'bWGQTlopoEY', platform: 'youtube', location: 'Cafe' },
+            { id: 'forest', name: 'Forest', thumbnail: '🌿', videoId: '3PZ65s2qLTE', platform: 'youtube', location: 'Alps' },
+            // CSS gradient scenes (no video, zero bandwidth, works offline)
+            { id: 'gradient-northern', name: 'Northern Lights', thumbnail: '🌌', gradient: 'bg-gradient-northern' },
+            { id: 'gradient-ocean', name: 'Ocean Depths', thumbnail: '🌊', gradient: 'bg-gradient-ocean' },
+            { id: 'gradient-sunset', name: 'Sunset Glow', thumbnail: '🌅', gradient: 'bg-gradient-sunset' },
+            { id: 'gradient-forest', name: 'Forest Canopy', thumbnail: '🌲', gradient: 'bg-gradient-forest' },
+            { id: 'gradient-cyberpunk', name: 'Cyberpunk', thumbnail: '🌆', gradient: 'bg-gradient-cyberpunk' },
+        ],
+        active: null,
+        customVideoId: null,
+        customPlatform: null,
+        customUrl: '',
+        opacity: 0.55,
+        parseError: '',
+
+        init() {
+            const saved = JSON.parse(localStorage.getItem('fixate-video-bg') || '{}');
+            if (saved.active) {
+                if (saved.active === 'custom' && saved.customVideoId) {
+                    this.setCustomVideo(saved.customVideoId, saved.customPlatform);
+                } else {
+                    const p = this.presets.find(x => x.id === saved.active);
+                    if (p) this.activate(p);
+                }
+            }
+            if (saved.opacity !== undefined) this.opacity = saved.opacity;
+            this.applyOverlay();
+            const root = this.$el.closest('[x-data]').__x.$data;
+            if (root && root.videoActive !== undefined) root.videoActive = !!this.active;
+        },
+
+        setCustomUrl() {
+            this.parseError = '';
+            const url = this.customUrl.trim();
+            if (!url) return;
+            let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+            if (m) { this.setCustomVideo(m[1], 'youtube'); this.save(); this.customUrl = ''; return; }
+            m = url.match(/vimeo\.com\/(\d+)/);
+            if (m) { this.setCustomVideo(m[1], 'vimeo'); this.save(); this.customUrl = ''; return; }
+            this.parseError = 'Could not parse. Paste a YouTube or Vimeo link.';
+        },
+
+        setCustomVideo(vid, plat) {
+            this.active = 'custom';
+            this.customVideoId = vid;
+            this.customPlatform = plat;
+            this.renderVideo(vid, plat);
+            const root = this.$el.closest('[x-data]').__x.$data;
+            if (root) root.videoActive = true;
+        },
+
+        renderVideo(vid, plat) {
+            const c = document.getElementById('video-bg-container');
+            if (!c) return;
+            const layer = document.getElementById('video-bg-layer');
+            if (layer) layer.classList.add('active');
+            let src = plat === 'youtube'
+                ? `https://www.youtube.com/embed/${vid}?autoplay=1&mute=1&loop=1&controls=0&playlist=${vid}&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1`
+                : `https://player.vimeo.com/video/${vid}?autoplay=1&muted=1&loop=1&background=1&controls=0`;
+            c.innerHTML = `<iframe src="${src}" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+        },
+
+        activate(p) {
+            this.active = p.id;
+            this.clearBg();
+            if (p.gradient) {
+                const layer = document.getElementById('video-bg-layer');
+                if (layer) layer.classList.add('active', p.gradient);
+            } else {
+                this.renderVideo(p.videoId, p.platform);
+            }
+            this.save();
+            const root = this.$el.closest('[x-data]').__x.$data;
+            if (root) root.videoActive = true;
+        },
+
+        clearBg() {
+            document.getElementById('video-bg-container').innerHTML = '';
+            const layer = document.getElementById('video-bg-layer');
+            if (layer) {
+                layer.classList.remove('active');
+                const gradClasses = ['bg-gradient-northern', 'bg-gradient-ocean', 'bg-gradient-sunset', 'bg-gradient-forest', 'bg-gradient-cyberpunk'];
+                gradClasses.forEach(c => layer.classList.remove(c));
+            }
+        },
+
+        clear() {
+            this.active = null;
+            this.clearBg();
+            this.save();
+            const root = this.$el.closest('[x-data]').__x.$data;
+            if (root) root.videoActive = false;
+        },
+
+        setOpacity(v) { this.opacity = parseFloat(v); this.applyOverlay(); this.save(); },
+        applyOverlay() {
+            const o = document.getElementById('video-bg-overlay');
+            if (o) o.style.background = `rgba(8,8,10,${this.opacity})`;
+        },
+        save() {
+            localStorage.setItem('fixate-video-bg', JSON.stringify({
+                active: this.active, customVideoId: this.customVideoId,
+                customPlatform: this.customPlatform, opacity: this.opacity,
+            }));
+        },
+        isActive(id) { return this.active === id; },
+    };
+}
+
+// ═══════════════════════════════════════════════
+// MUSIC PANEL (Spotify embed)
+// ═══════════════════════════════════════════════
+function coworkMusic() {
+    return {
+        spotifyUrl: '',
+        spotifySrc: '',
+        spotifyError: '',
+
+        init() {
+            const saved = JSON.parse(localStorage.getItem('fixate-spotify') || '{}');
+            if (saved.src) {
+                // Validate before rendering — must be a Spotify embed iframe
+                const match = saved.src.match(/src="https:\/\/open\.spotify\.com\/embed\/(playlist|album|track|artist)\/([a-zA-Z0-9]+)"/);
+                if (match) {
+                    this.spotifySrc = saved.src;
+                } else {
+                    localStorage.removeItem('fixate-spotify');
+                }
+            }
+        },
+
+        loadSpotify() {
+            this.spotifyError = '';
+            const url = this.spotifyUrl.trim();
+            if (!url) return;
+
+            // Parse Spotify URL: open.spotify.com/{type}/{id}
+            const m = url.match(/spotify\.com\/(embed\/)?(playlist|album|track|artist)\/([a-zA-Z0-9]+)/);
+            if (!m) {
+                this.spotifyError = 'Not a valid Spotify URL.';
+                return;
+            }
+            const type = m[2];
+            const id = m[3];
+            this.spotifySrc = `<iframe src="https://open.spotify.com/embed/${type}/${id}"
+                width="100%" height="380" frameborder="0"
+                allowtransparency="true" allow="encrypted-media"
+                style="border-radius:8px"></iframe>`;
+            this.spotifyUrl = '';
+            localStorage.setItem('fixate-spotify', JSON.stringify({ src: this.spotifySrc }));
+        },
+
+        loadPreset(spotifyPath) {
+            this.spotifySrc = `<iframe src="https://open.spotify.com/embed/${spotifyPath}"
+                width="100%" height="380" frameborder="0"
+                allowtransparency="true" allow="encrypted-media"
+                style="border-radius:8px"></iframe>`;
+            localStorage.setItem('fixate-spotify', JSON.stringify({ src: this.spotifySrc }));
+        },
+    };
+}
+
+// ═══════════════════════════════════════════════
+// TASKS PANEL (compact kanban)
+// ═══════════════════════════════════════════════
+function coworkTasks() {
+    return {
+        tasks: [],
+        editingId: null,
+        priorTitle: '',
+        columns: [
+            { id: 'todo', label: 'To Do', emoji: '📋' },
+            { id: 'doing', label: 'Doing', emoji: '⚡' },
+            { id: 'done', label: 'Done', emoji: '✅' },
+        ],
+
+        async loadTasks() {
+            const res = await fetch('/api/reader/tasks/');
+            this.tasks = await res.json();
+        },
+
+        tasksInCol(status) {
+            return this.tasks.filter(t => t.status === status).sort((a, b) => a.position - b.position);
+        },
+
+        async addTask(event, status) {
+            const title = event.target.value.trim();
+            if (!title) return;
+            event.target.value = '';
+            const res = await fetch('/api/reader/tasks/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ title, status }),
+            });
+            const task = await res.json();
+            this.tasks.push(task);
+        },
+
+        startEdit(task) {
+            this.editingId = task.id;
+            this.priorTitle = task.title;
+            this.$nextTick(() => {
+                const el = this.$el.querySelector(`[contenteditable="true"]`);
+                if (el) { el.focus(); document.execCommand('selectAll', false, null); }
+            });
+        },
+
+        async saveEdit(task, event) {
+            if (this.editingId !== task.id) return;
+            const newTitle = event.target.textContent.trim();
+            this.editingId = null;
+            if (!newTitle || newTitle === this.priorTitle) { event.target.textContent = this.priorTitle; return; }
+            task.title = newTitle;
+            await fetch(`/api/reader/tasks/${task.id}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ title: newTitle }),
+            });
+        },
+
+        async cyclePriority(task) {
+            const order = ['high', 'medium', 'low'];
+            const idx = order.indexOf(task.priority);
+            task.priority = order[(idx + 1) % 3];
+            const res = await fetch(`/api/reader/tasks/${task.id}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ priority: task.priority }),
+            });
+            const u = await res.json();
+            task.priority_color = u.priority_color;
+        },
+
+        async moveTask(task, newStatus) {
+            if (!newStatus) return;
+            task.status = newStatus;
+            const updates = this.tasks.map(t => ({ id: t.id, status: t.status, position: this.tasksInCol(t.status).indexOf(t) }));
+            await fetch('/api/reader/tasks/', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ tasks: updates }),
+            });
+        },
+
+        async deleteTask(task) {
+            await fetch(`/api/reader/tasks/${task.id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': csrf() },
+            });
+            this.tasks = this.tasks.filter(t => t.id !== task.id);
+        },
+    };
+}
+
+// ═══════════════════════════════════════════════
+// NOTES PANEL (compact sticky notes)
+// ═══════════════════════════════════════════════
+function coworkNotes() {
+    return {
+        notes: [],
+
+        async loadNotes() {
+            const res = await fetch('/api/reader/notes/');
+            const data = await res.json();
+            this.notes = data.map(n => ({ ...n, _expanded: false }));
+        },
+
+        async addNote(event) {
+            const title = event.target.value.trim();
+            if (!title) return;
+            event.target.value = '';
+            const res = await fetch('/api/reader/notes/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ title }),
+            });
+            const note = await res.json();
+            note._expanded = false;
+            this.notes.unshift(note);
+        },
+
+        async deleteNote(note) {
+            await fetch(`/api/reader/notes/${note.id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': csrf() },
+            });
+            this.notes = this.notes.filter(n => n.id !== note.id);
+        },
+
+        formatDate(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const now = new Date();
+            const diff = now - d;
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'now';
+            if (mins < 60) return `${mins}m`;
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return `${hours}h`;
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        },
+    };
+}
+
+// Helper
+function csrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+// ═══════════════════════════════════════════════
+// ROOMS PANEL (list, create, join)
+// ═══════════════════════════════════════════════
+function coworkRoomsPanel() {
+    return {
+        newRoomName: '',
+        joinCode: '',
+        roomError: '',
+        myRooms: [],
+
+        init() {
+            this.loadMyRooms();
+        },
+
+        async loadMyRooms() {
+            try {
+                const res = await fetch('/api/reader/rooms/');
+                this.myRooms = await res.json();
+            } catch (e) {}
+        },
+
+        async createRoom() {
+            const name = this.newRoomName.trim();
+            if (!name) return;
+            this.roomError = '';
+            const res = await fetch('/api/reader/rooms/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ name }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                this.roomError = err.error || 'Failed to create room';
+                return;
+            }
+            const room = await res.json();
+            this.newRoomName = '';
+            this.myRooms.unshift(room);
+            this.enterRoom(room);
+        },
+
+        async joinRoom() {
+            const code = this.joinCode.trim().toUpperCase();
+            if (!code) return;
+            this.roomError = '';
+            const res = await fetch('/api/reader/rooms/join/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ code }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                this.roomError = err.error || 'Room not found';
+                return;
+            }
+            const room = await res.json();
+            this.joinCode = '';
+            this.enterRoom(room);
+            this.loadMyRooms();
+        },
+
+        enterRoom(room) {
+            // Push room to parent coworkApp
+            const root = document.querySelector('[x-data="coworkApp()"]');
+            if (root && root.__x) {
+                root.__x.$data.activeRoom = room;
+                root.__x.$data.activePanel = null;
+            }
+        },
+    };
+}
+
+// ═══════════════════════════════════════════════
+// IN-ROOM EXPERIENCE (WebSocket + timer + chat)
+// ═══════════════════════════════════════════════
+function coworkRoom() {
+    return {
+        socket: null,
+        presence: [],
+        messages: [],
+        timer: { running: false, duration: 25 * 60, remaining: 25 * 60 },
+        timerRemaining: 25 * 60,
+        timerInterval: null,
+        activeRoom: null,
+
+        init() {
+            // Get room from parent
+            const root = document.querySelector('[x-data="coworkApp()"]');
+            if (root && root.__x) {
+                this.activeRoom = root.__x.$data.activeRoom;
+            }
+            if (!this.activeRoom) return;
+            this.timer.duration = this.activeRoom.timer_duration || 25 * 60;
+            this.timerRemaining = this.timer.duration;
+            this.connect();
+        },
+
+        connect() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${location.host}{{ FORCE_SCRIPT_NAME }}/ws/cowork/${this.activeRoom.id}/`;
+            this.socket = new WebSocket(wsUrl);
+
+            this.socket.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                switch (data.type) {
+                    case 'room_state':
+                        this.presence = data.presence || [];
+                        if (data.timer) {
+                            this.timer = data.timer;
+                            this.timerRemaining = data.timer.remaining;
+                            if (data.timer.running) this.startCountdown();
+                        }
+                        break;
+                    case 'user_joined':
+                        this.presence = data.presence || [];
+                        break;
+                    case 'user_left':
+                        this.presence = data.presence || [];
+                        break;
+                    case 'chat':
+                        this.messages.push(data);
+                        this.$nextTick(() => this.scrollChat());
+                        break;
+                    case 'timer_sync':
+                        this.timer = data.timer;
+                        this.timerRemaining = data.timer.remaining;
+                        if (data.timer.running) {
+                            this.startCountdown();
+                        } else {
+                            this.stopCountdown();
+                        }
+                        break;
+                }
+            };
+
+            this.socket.onclose = () => {
+                // Reconnect after 3s
+                setTimeout(() => { if (this.activeRoom) this.connect(); }, 3000);
+            };
+
+            // Ping every 30s to keep presence alive
+            setInterval(() => {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send(JSON.stringify({ type: 'presence_ping' }));
+                }
+            }, 30000);
+        },
+
+        // ── Timer ──
+
+        startCountdown() {
+            this.stopCountdown();
+            this.timerInterval = setInterval(() => {
+                if (this.timerRemaining > 0) {
+                    this.timerRemaining--;
+                } else {
+                    this.stopCountdown();
+                }
+            }, 1000);
+        },
+
+        stopCountdown() {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
+        },
+
+        startTimer() {
+            this.send({ type: 'timer_start' });
+        },
+
+        pauseTimer() {
+            this.send({ type: 'timer_pause', remaining: this.timerRemaining });
+        },
+
+        resetTimer() {
+            this.send({ type: 'timer_reset', duration: this.timer.duration });
+        },
+
+        setDuration(seconds) {
+            this.timer.duration = seconds;
+            this.send({ type: 'timer_reset', duration: seconds });
+        },
+
+        // ── Chat ──
+
+        sendMessage(event) {
+            const val = event.target.value.trim();
+            if (!val) return;
+            this.send({ type: 'chat', message: val });
+            event.target.value = '';
+        },
+
+        send(data) {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.socket.send(JSON.stringify(data));
+            }
+        },
+
+        scrollChat() {
+            const el = this.$refs.chatScroll;
+            if (el) el.scrollTop = el.scrollHeight;
+        },
+
+        // ── Leave ──
+
+        leaveRoom() {
+            if (this.socket) this.socket.close();
+            this.stopCountdown();
+            const root = document.querySelector('[x-data="coworkApp()"]');
+            if (root && root.__x) {
+                root.__x.$data.activeRoom = null;
+            }
+        },
+
+        formatTimer(s) {
+            if (s < 0) s = 0;
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m}:${sec.toString().padStart(2, '0')}`;
+        },
+    };
+}
+
+// Update coworkApp to include room state
+document.addEventListener('alpine:init', () => {
+    // Patch: add activeRoom to root data
+    const app = document.querySelector('[x-data="coworkApp()"]');
+    if (app && app.__x && app.__x.$data.activeRoom === undefined) {
+        app.__x.$data.activeRoom = null;
+    }
+});
+</script>
+{% endblock %}

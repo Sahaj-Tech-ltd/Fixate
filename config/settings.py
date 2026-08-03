@@ -13,11 +13,24 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 FIXATE_MODE = env("FIXATE_MODE", default="cloud")
 
-SECRET_KEY = env("SECRET_KEY")
+if FIXATE_MODE == "desktop":
+    SECRET_KEY = "django-insecure-desktop-local-dev-key-do-not-use-in-prod"
+else:
+    SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
-ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+
+# ── Desktop mode overrides ──
+if FIXATE_MODE == "desktop":
+    DEBUG = True
+    ALLOWED_HOSTS = ["*"]
+    FORCE_SCRIPT_NAME = env("FORCE_SCRIPT_NAME", default="")
+    STATIC_URL = f"{FORCE_SCRIPT_NAME}/static/"
+    CELERY_BROKER_URL = None  # disable Celery
+else:
+    ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 INSTALLED_APPS = [
+    "daphne",  # must be first for ASGI/WebSocket
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -25,12 +38,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "channels",
     "rest_framework",
     "django_htmx",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "allauth.socialaccount.providers.google",
+    # Google auth only in cloud mode
+    *(["allauth.socialaccount.providers.google"] if FIXATE_MODE != "desktop" else []),
     "apps.users",
     "apps.documents",
     "apps.reader",
@@ -44,6 +59,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "config.middleware.AutoLoginMiddleware",
+    "config.script_middleware.ScriptNameMiddleware",
+    "config.csp_middleware.CSPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -63,14 +80,27 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "config.context_processors.fixate_mode",
             ],
         },
     },
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
-from config.backends.database import get_database_config
+# ── Django Channels (cloud only — requires Redis) ──
+if FIXATE_MODE != "desktop":
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [env("REDIS_URL", default="redis://localhost:6379/0")],
+            },
+        },
+    }
+
+from config.backends.database import get_database_config  # noqa: E402
 
 _db_config = get_database_config(FIXATE_MODE)
 if _db_config:
@@ -96,13 +126,27 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
+FREE_TEXTRACT_LIMIT = env.int("FREE_TEXTRACT_LIMIT", default=10)
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+if FIXATE_MODE != "desktop":
+    STATIC_URL = "/fixate/static/"
+    FORCE_SCRIPT_NAME = "/fixate"
+else:
+    # Desktop: STATIC_URL and FORCE_SCRIPT_NAME already set above from env
+    pass
+
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+if FIXATE_MODE != "desktop":
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Auth redirects — must use reverse_lazy so FORCE_SCRIPT_NAME is applied
+from django.urls import reverse_lazy
+LOGIN_URL = reverse_lazy("account_login")
+LOGIN_REDIRECT_URL = reverse_lazy("home")
+LOGOUT_REDIRECT_URL = reverse_lazy("home")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -114,17 +158,24 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+if FIXATE_MODE == "desktop":
+    ACCOUNT_EMAIL_VERIFICATION = "none"
+else:
+    ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"
 
-# Email: console backend for dev, SMTP for production
-if DEBUG:
+# Email: console for desktop, SMTP for cloud
+if FIXATE_MODE == "desktop":
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+elif DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = env("EMAIL_HOST", default="")
     EMAIL_PORT = env("EMAIL_PORT", default=587)
-    EMAIL_USE_TLS = True
+    EMAIL_USE_TLS = False
     EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
     EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
     DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@fixate.app")
@@ -148,15 +199,38 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/minute",
+        "user": "100/minute",
+    },
 }
 
-if not DEBUG:
+if not DEBUG and FIXATE_MODE != "desktop":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+
+SESSION_COOKIE_AGE = 86400  # 24 hours instead of default 2 weeks
+
+# django-allauth rate limits
+ACCOUNT_RATE_LIMITS = {
+    "login": "5/m",
+    "signup": "3/h",
+}
 
 LOGGING = {
     "version": 1,
@@ -190,6 +264,12 @@ LOGGING = {
 if FIXATE_MODE != "desktop":
     CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
     CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+    CELERY_TASK_SERIALIZER = "json"
+    CELERY_RESULT_SERIALIZER = "json"
+    CELERY_ACCEPT_CONTENT = ["json"]
+    CELERY_TASK_ACKS_LATE = True
+    CELERY_TASK_TIME_LIMIT = 300
+    CELERY_TASK_SOFT_TIME_LIMIT = 240
 
 # AWS — only for cloud mode
 if FIXATE_MODE != "desktop":
@@ -204,6 +284,10 @@ if FIXATE_MODE != "desktop":
     if AWS_STORAGE_BUCKET_NAME:
         DEFAULT_FILE_STORAGE = "storages.backends.s3.S3Storage"
 
-# Desktop mode: local media serving
-if FIXATE_MODE == "desktop":
-    from config.backends.media import MEDIA_URL, MEDIA_ROOT
+# ── Media storage ──
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+
+# Only use S3 in cloud mode when credentials are present
+if FIXATE_MODE != "desktop" and AWS_STORAGE_BUCKET_NAME:
+    DEFAULT_FILE_STORAGE = "storages.backends.s3.S3Storage"

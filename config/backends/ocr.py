@@ -5,6 +5,7 @@ Desktop mode: Tesseract OCR (sync).
 """
 
 import logging
+import sys
 
 from django.conf import settings
 
@@ -37,6 +38,7 @@ def _extract_text_tesseract(file_path):
     """Use Tesseract OCR via pytesseract + pdf2image.
 
     The file_path should be a local PDF file path.
+    Resolves tesseract binary from PATH, bundled location, or common install dirs.
     """
     try:
         import pytesseract
@@ -46,6 +48,9 @@ def _extract_text_tesseract(file_path):
             "pytesseract and pdf2image are required for desktop OCR. "
             "Install with: pip install pytesseract pdf2image"
         ) from e
+
+    # Resolve tesseract binary path for offline/bundled desktop use
+    _resolve_tesseract_path(pytesseract)
 
     try:
         images = convert_from_path(file_path, dpi=300)
@@ -67,6 +72,48 @@ def _extract_text_tesseract(file_path):
         "pages": len(images),
         "word_count": len(full_text.split()),
     }
+
+
+def _resolve_tesseract_path(pytesseract):
+    """Find and configure the tesseract binary path for desktop bundles.
+
+    Checks (in order):
+      1. System PATH (default pytesseract behavior)
+      2. Bundled next to the executable (PyInstaller onefile)
+      3. Common Linux install locations
+    """
+    import shutil
+    from pathlib import Path
+
+    # 1. Already on PATH? Let pytesseract handle it.
+    if shutil.which("tesseract"):
+        return
+
+    # 2. Check bundled location (next to the PyInstaller binary)
+    if getattr(sys, 'frozen', False):
+        exe_dir = Path(sys.executable).parent
+        bundled = exe_dir / "tesseract" / "tesseract"
+        if bundled.exists():
+            pytesseract.pytesseract.tesseract_cmd = str(bundled)
+            # Also set TESSDATA_PREFIX for bundled traineddata
+            tessdata = exe_dir / "tesseract" / "tessdata"
+            if tessdata.exists():
+                import os as _os
+                _os.environ.setdefault("TESSDATA_PREFIX", str(tessdata))
+            return
+
+    # 3. Check common install locations
+    common_paths = [
+        "/usr/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/snap/bin/tesseract",
+    ]
+    for path in common_paths:
+        if Path(path).exists():
+            pytesseract.pytesseract.tesseract_cmd = path
+            return
+
+    # 4. Not found — pytesseract will raise TesseractNotFoundError later
 
 
 def _extract_text_textract(file_path_or_key):

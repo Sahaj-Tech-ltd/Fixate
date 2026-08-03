@@ -29,9 +29,15 @@ class BionicReader {
     
     formatWord(word) {
         const boldLength = this.getBoldLength(word);
-        const boldPart = word.slice(0, boldLength);
-        const rest = word.slice(boldLength);
+        const boldPart = this._escapeHTML(word.slice(0, boldLength));
+        const rest = this._escapeHTML(word.slice(boldLength));
         return `<strong>${boldPart}</strong>${rest}`;
+    }
+    
+    _escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
     
     render(container, position = 0) {

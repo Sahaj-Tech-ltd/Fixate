@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16-alpine
@@ -5,46 +7,91 @@ services:
     environment:
       POSTGRES_DB: fixate
       POSTGRES_USER: fixate
-      POSTGRES_PASSWORD: fixate
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fixate"]
       interval: 5s
       timeout: 5s
       retries: 5
+    mem_limit: 256m
 
   redis:
     image: redis:7-alpine
     container_name: fixate_redis
-    ports:
-      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
 
-  web:
+  migrate:
     build: .
-    container_name: fixate_web
-    command: python manage.py runserver 0.0.0.0:8000
+    container_name: fixate_migrate
+    command: >
+      sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
     volumes:
       - .:/app
-    ports:
-      - "8000:8000"
     environment:
-      - DEBUG=True
+      - DEBUG=False
       - FIXATE_MODE=cloud
       - DB_HOST=db
       - DB_NAME=fixate
       - DB_USER=fixate
-      - DB_PASSWORD=fixate
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  web:
+    build: .
+    container_name: fixate_web
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    volumes:
+      - .:/app
+    ports:
+      - "8096:8000"
+    environment:
+      - DEBUG=False
+      - FIXATE_MODE=cloud
+      - DB_HOST=db
+      - DB_NAME=fixate
+      - DB_USER=fixate
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-hello@databunker.uk}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
       redis:
-        condition: service_started
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; c=http.client.HTTPConnection('localhost',8000,timeout=5); c.request('GET','/'); r=c.getresponse(); exit(0 if r.status<500 else 1)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    mem_limit: 512m
 
   celery:
     build: .
@@ -53,18 +100,36 @@ services:
     volumes:
       - .:/app
     environment:
-      - DEBUG=True
+      - DEBUG=False
       - FIXATE_MODE=cloud
       - DB_HOST=db
       - DB_NAME=fixate
       - DB_USER=fixate
-      - DB_PASSWORD=fixate
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-hello@databunker.uk}
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
-        condition: service_started
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "--timeout", "10"]
+      interval: 30s
+      timeout: 15s
+      start_period: 20s
+      retries: 3
+    mem_limit: 512m
+
+networks:
+  default:
+    name: authelia_default
+    external: true
 
 volumes:
   postgres_data:

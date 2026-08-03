@@ -8,8 +8,12 @@
     <p>RSVP and Bionic Reading for ADHD brains.</p>
     
     <div class="cta">
-        <a href="{% url 'account_signup' %}" class="btn primary">Get Started Free</a>
-        <a href="{% url 'account_login' %}" class="btn secondary">Sign In</a>
+        {% if is_desktop or user.is_authenticated %}
+            <a href="{% url 'dashboard' %}" class="btn primary">Go to Dashboard</a>
+        {% else %}
+            <a href="{% url 'account_signup' %}" class="btn primary">Get Started Free</a>
+            <a href="{% url 'account_login' %}" class="btn secondary">Sign In</a>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

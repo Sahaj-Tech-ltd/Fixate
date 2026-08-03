@@ -23,12 +23,15 @@ class AutoLoginMiddleware:
         ):
             from apps.users.models import User
 
-            user, _ = User.objects.get_or_create(
+            user, created = User.objects.get_or_create(
                 email="local@fixate.app",
                 defaults={
                     "tier": User.TIER_PRO,
                 },
             )
+            if created:
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
             login(request, user)
 
         return self.get_response(request)

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -20,12 +21,15 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
     
+    @property
+    def display_name(self):
+        """Display-safe name that doesn't leak email in logs."""
+        if self.first_name:
+            return self.first_name
+        return f"User {self.pk}"
+    
     def can_use_textract(self):
-        if self.tier == self.TIER_PRO:
-            return True
-        return self.textract_uploads_used < 10
+        return True
     
     def increment_textract_usage(self):
-        if self.tier != self.TIER_PRO:
-            self.textract_uploads_used += 1
-            self.save(update_fields=["textract_uploads_used"])
+        pass

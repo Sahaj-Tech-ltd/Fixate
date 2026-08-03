@@ -1,0 +1,34 @@
+name: Feature Request
+description: Propose a new feature for Fixate
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: "New features should be grounded in reading science or ADHD neuroscience research. Please include citations where possible."
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What feature do you want? Why?
+    validations:
+      required: true
+  - type: textarea
+    id: research
+    attributes:
+      label: Research Support
+      description: "Any papers, studies, or evidence supporting this feature? Link DOIs or arXiv IDs if available."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Reading mode (RSVP, Bionic, Sentence)
+        - Noise/Audio
+        - Hyperfocus/ADHD
+        - Accessibility (fonts, themes, contrast)
+        - Co-working
+        - Annotations (highlights, flashcards, journal)
+        - Desktop app
+        - Other
+    validations:
+      required: true

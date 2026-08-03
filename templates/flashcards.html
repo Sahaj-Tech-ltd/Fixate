@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+
+{% block title %}Flashcards — Fixate{% endblock %}
+
+{% block extra_css %}
+<style>
+.flashcards-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.flashcards-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.flashcards-header h1 {
+    font-size: 24px;
+}
+
+.flashcards-header nav a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    margin-left: 16px;
+}
+
+.flashcards-header nav a:hover {
+    color: var(--accent);
+}
+
+/* Deck selector */
+.deck-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.deck-tab {
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.deck-tab:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.deck-tab.active {
+    background: rgba(99,102,241,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.deck-tab .badge {
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+}
+
+/* Card */
+.card-stage {
+    perspective: 1000px;
+    margin-bottom: 32px;
+}
+
+.flashcard {
+    width: 100%;
+    min-height: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.5s, box-shadow 0.3s;
+    transform-style: preserve-3d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+}
+
+.flashcard:hover {
+    box-shadow: 0 0 30px rgba(99,102,241,0.08);
+}
+
+.flashcard.flipped {
+    transform: rotateY(180deg);
+}
+
+.flashcard .card-face {
+    backface-visibility: hidden;
+    width: 100%;
+}
+
+.flashcard .card-back {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    transform: rotateY(180deg);
+    backface-visibility: hidden;
+}
+
+.card-front-text {
+    font-size: 22px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.card-back-text {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.card-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+.card-source {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.4;
+    margin-top: 12px;
+    font-style: italic;
+}
+
+/* Review buttons */
+.review-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.review-btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.review-btn:hover {
+    border-color: var(--accent);
+}
+
+.review-btn.again { border-color: #ef4444; color: #ef4444; }
+.review-btn.again:hover { background: rgba(239,68,68,0.1); }
+.review-btn.hard { border-color: #f59e0b; color: #f59e0b; }
+.review-btn.hard:hover { background: rgba(245,158,11,0.1); }
+.review-btn.good { border-color: #22c55e; color: #22c55e; }
+.review-btn.good:hover { background: rgba(34,197,94,0.1); }
+.review-btn.easy { border-color: var(--accent); color: var(--accent); }
+.review-btn.easy:hover { background: rgba(99,102,241,0.1); }
+
+/* Done state */
+.done-state {
+    text-align: center;
+    padding: 60px 0;
+}
+
+.done-state .icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.done-state h2 {
+    font-size: 22px;
+    margin-bottom: 8px;
+}
+
+.done-state p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+/* Progress */
+.progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.progress-track {
+    height: 3px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+/* New deck */
+.new-deck-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.new-deck-input {
+    flex: 1;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.new-deck-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 0;
+    color: var(--text-secondary);
+}
+
+.empty-state p {
+    margin-bottom: 12px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flashcards-container" x-data="flashcardApp()" x-init="init()">
+    <header class="flashcards-header">
+        <h1>🃏 Flashcards</h1>
+        <nav>
+            <a href="{% url 'dashboard' %}">← Library</a>
+        </nav>
+    </header>
+
+    <!-- Deck selector -->
+    <div class="deck-tabs">
+        <button class="deck-tab" :class="{ active: activeDeck === 'all' }" @click="selectDeck('all')">
+            All Decks
+        </button>
+        <template x-for="deck in decks" :key="deck.id">
+            <button class="deck-tab" :class="{ active: activeDeck === deck.id }" @click="selectDeck(deck.id)">
+                <span x-text="deck.name"></span>
+                <span class="badge" x-show="deck.due_count > 0" x-text="deck.due_count"></span>
+            </button>
+        </template>
+    </div>
+
+    <!-- New deck -->
+    <div class="new-deck-row">
+        <input type="text" class="new-deck-input" placeholder="New deck name..." 
+               x-model="newDeckName" @keyup.enter="createDeck()">
+        <button class="btn-secondary" @click="createDeck()">+ Create Deck</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-row" x-show="!done && card">
+        <span x-text="'Card ' + (reviewedCount + 1) + ' of ' + totalDue"></span>
+        <span x-text="deckName"></span>
+    </div>
+    <div class="progress-track" x-show="!done && card">
+        <div class="progress-fill" :style="'width:' + (totalDue > 0 ? (reviewedCount / totalDue) * 100 : 0) + '%'"></div>
+    </div>
+
+    <!-- Card -->
+    <div class="card-stage" x-show="!done && card">
+        <div class="flashcard" :class="{ flipped: isFlipped }" @click="flip()">
+            <div class="card-face">
+                <div class="card-front-text" x-text="card?.front"></div>
+                <div class="card-hint">Click to flip</div>
+            </div>
+            <div class="card-back">
+                <div>
+                    <div class="card-back-text" x-text="card?.back || '(no answer yet — tap to add one)'"></div>
+                    <div class="card-source" x-show="card?.source_text" x-text="'Source: ' + card.source_text.substring(0, 100)"></div>
+                </div>
+                <div class="card-hint">Click to flip back</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review buttons -->
+    <div class="review-actions" x-show="!done && card && isFlipped">
+        <button class="review-btn again" @click="rate(1)">Again (1d)</button>
+        <button class="review-btn hard" @click="rate(2)">Hard (3d)</button>
+        <button class="review-btn good" @click="rate(3)">Good (7d)</button>
+        <button class="review-btn easy" @click="rate(4)">Easy (14d+)</button>
+    </div>
+
+    <!-- Done -->
+    <div class="done-state" x-show="done">
+        <div class="icon">🎉</div>
+        <h2>All caught up!</h2>
+        <p>No cards due for review right now.</p>
+        <p style="font-size:13px;color:var(--text-secondary);" x-text="'Reviewed ' + reviewedCount + ' cards today'"></p>
+        <button class="review-btn good" @click="resetReview()" style="margin-top:12px;">Review Again</button>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" x-show="!done && !card && reviewedCount === 0">
+        <p>No flashcards yet.</p>
+        <p style="font-size:13px;">Create flashcards from your reading highlights — look for the 💡 Highlight button while reading.</p>
+    </div>
+</div>
+
+<script>
+function flashcardApp() {
+    return {
+        decks: [],
+        activeDeck: 'all',
+        newDeckName: '',
+        card: null,
+        deckName: '',
+        isFlipped: false,
+        done: false,
+        reviewedCount: 0,
+        totalDue: 0,
+        _allCards: [],
+        _currentIdx: 0,
+
+        async init() {
+            await this.loadDecks();
+            await this.loadNextCard();
+        },
+
+        async loadDecks() {
+            try {
+                const resp = await fetch('/api/reader/flashcards/decks/', {
+                    headers: { 'X-CSRFToken': this._csrf() }
+                });
+                if (resp.ok) this.decks = await resp.json();
+            } catch(e) {}
+        },
+
+        async createDeck() {
+            const name = this.newDeckName.trim();
+            if (!name) return;
+            try {
+                const resp = await fetch('/api/reader/flashcards/decks/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this._csrf()
+                    },
+                    body: JSON.stringify({ name })
+                });
+                if (resp.ok) {
+                    this.newDeckName = '';
+                    await this.loadDecks();
+                }
+            } catch(e) {}
+        },
+
+        selectDeck(deckId) {
+            this.activeDeck = deckId;
+            this._currentIdx = 0;
+            this.reviewedCount = 0;
+            this.done = false;
+            this.card = null;
+            this.loadNextCard();
+        },
+
+        async loadNextCard() {
+            this.isFlipped = false;
+            try {
+                let url = '/api/reader/flashcards/review/';
+                if (this.activeDeck !== 'all') {
+                    // Load all cards for this deck and pick next due
+                    const resp = await fetch(`/api/reader/flashcards/decks/${this.activeDeck}/`, {
+                        headers: { 'X-CSRFToken': this._csrf() }
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this._allCards = data.cards.filter(c => {
+                            if (!c.next_review) return true;
+                            return new Date(c.next_review) <= new Date();
+                        });
+                        this.totalDue = this._allCards.length;
+                        if (this._currentIdx < this._allCards.length) {
+                            this.card = this._allCards[this._currentIdx];
+                            this.deckName = data.deck.name;
+                            this.done = false;
+                            return;
+                        }
+                    }
+                } else {
+                    const resp = await fetch(url, {
+                        headers: { 'X-CSRFToken': this._csrf() }
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (data.done) {
+                            this.done = true;
+                            this.card = null;
+                        } else {
+                            this.card = data.card;
+                            this.deckName = data.deck_name;
+                            this.done = false;
+                            this.totalDue = 1; // approximate
+                        }
+                        return;
+                    }
+                }
+                this.done = true;
+                this.card = null;
+            } catch(e) {
+                this.done = true;
+            }
+        },
+
+        flip() {
+            this.isFlipped = !this.isFlipped;
+        },
+
+        async rate(quality) {
+            if (!this.card) return;
+            try {
+                await fetch(`/api/reader/flashcards/review/${this.card.id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this._csrf()
+                    },
+                    body: JSON.stringify({ quality })
+                });
+                this.reviewedCount++;
+                this._currentIdx++;
+                this.isFlipped = false;
+                await this.loadNextCard();
+            } catch(e) {}
+        },
+
+        resetReview() {
+            this._currentIdx = 0;
+            this.reviewedCount = 0;
+            this.done = false;
+            this.card = null;
+            this.isFlipped = false;
+            this.loadNextCard();
+        },
+
+        _csrf() {
+            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        },
+    }
+}
+</script>
+{% endblock %}

@@ -46,19 +46,78 @@
                 <div class="form-group">
                     <label>Default Font</label>
                     <select x-model="preferences.default_font" @change="savePreferences()">
-                        <option value="inter">Inter</option>
-                        <option value="opendyslexic">OpenDyslexic</option>
-                        <option value="system">System Font</option>
+                        {% for font_id, font_data in FONTS.items %}
+                        <option value="{{ font_id }}">{{ font_data.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 
                 <div class="form-group">
                     <label>Theme</label>
                     <select x-model="preferences.theme" @change="savePreferences()">
-                        <option value="dark">Dark</option>
-                        <option value="light">Light</option>
-                        <option value="sepia">Sepia</option>
+                        <optgroup label="Default">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                            <option value="sepia">Sepia</option>
+                        </optgroup>
+                        <optgroup label="Accessibility">
+                            <option value="high-contrast">High Contrast</option>
+                            <option value="dyslexia">Dyslexia-Friendly</option>
+                            <option value="low-stim">Low Stimulation</option>
+                        </optgroup>
+                        <optgroup label="Reading Comfort">
+                            <option value="warm-night">Warm Night</option>
+                            <option value="cool-focus">Cool Focus</option>
+                            <option value="solarized-dark">Solarized Dark</option>
+                            <option value="solarized-light">Solarized Light</option>
+                        </optgroup>
+                        <optgroup label="Popular Themes">
+                            <option value="catppuccin-mocha">Catppuccin Mocha</option>
+                            <option value="catppuccin-latte">Catppuccin Latte</option>
+                            <option value="gruvbox-dark">Gruvbox Dark</option>
+                            <option value="gruvbox-light">Gruvbox Light</option>
+                            <option value="nord">Nord</option>
+                            <option value="dracula">Dracula</option>
+                            <option value="everforest">Everforest</option>
+                            <option value="tokyo-night">Tokyo Night</option>
+                        </optgroup>
                     </select>
+                </div>
+            </div>
+        </section>
+        
+        <section class="settings-section">
+            <h2>ADHD Profile</h2>
+            <p class="section-desc">We adapt noise, nudges, and focus tools to your type. Based on peer-reviewed research (Soderlund 2024, Nigg 2024).</p>
+            
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>ADHD Type</label>
+                    <select x-model="preferences.adhd_subtype" @change="savePreferences()">
+                        <option value="none">No ADHD / Prefer not to say</option>
+                        <option value="inattentive">ADHD — Inattentive (distractible)</option>
+                        <option value="hyperactive">ADHD — Hyperactive (restless)</option>
+                        <option value="combined">ADHD — Combined (both)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Sensory Sensitivity</label>
+                    <select x-model="preferences.sensory_sensitivity" @change="savePreferences()">
+                        <option value="low">Low — loud/bright is fine</option>
+                        <option value="medium">Medium — average sensitivity</option>
+                        <option value="high">High — easily overstimulated</option>
+                    </select>
+                </div>
+                
+                <div class="profile-effects" x-show="preferences.adhd_subtype !== 'none'">
+                    <h4>What this changes</h4>
+                    <ul>
+                        <li>🎧 <strong>Noise:</strong> <span x-text="preferences.adhd_subtype === 'hyperactive' ? 'Off by default (noise can worsen hyperactivity)' : 'On by default (boosts focus for inattentive types)'"></span></li>
+                        <li>⚡ <strong>Nudges:</strong> <span x-text="preferences.adhd_subtype === 'hyperactive' ? 'Off (already stimulated enough)' : 'On (disrupts mind-wandering)'"></span></li>
+                        <li>🎨 <strong>Theme:</strong> <span x-text="preferences.sensory_sensitivity === 'high' ? 'Low Stimulation' : preferences.adhd_subtype === 'inattentive' ? 'Warm Night' : 'Dark'"></span></li>
+                        <li>🔤 <strong>Font:</strong> <span x-text="preferences.adhd_subtype === 'inattentive' ? 'Lexend (research-backed reading speed)' : 'Inter'"></span></li>
+                    </ul>
                 </div>
             </div>
         </section>
@@ -100,7 +159,9 @@ function settingsApp() {
             default_chunk_size: {{ preferences.default_chunk_size }},
             default_font: '{{ preferences.default_font }}',
             theme: '{{ preferences.theme }}',
-            tier: '{{ request.user.tier }}'
+            tier: '{{ request.user.tier }}',
+            adhd_subtype: '{{ preferences.adhd_subtype }}',
+            sensory_sensitivity: '{{ preferences.sensory_sensitivity }}'
         },
         
         get boldIntensityPercent() {
@@ -126,10 +187,14 @@ function settingsApp() {
                     default_bold_intensity: this.preferences.default_bold_intensity,
                     default_chunk_size: parseInt(this.preferences.default_chunk_size),
                     default_font: this.preferences.default_font,
-                    theme: this.preferences.theme
+                    theme: this.preferences.theme,
+                    adhd_subtype: this.preferences.adhd_subtype,
+                    sensory_sensitivity: this.preferences.sensory_sensitivity
             });
             localStorage.setItem('fixate-theme', this.preferences.theme);
             document.documentElement.setAttribute('data-theme', this.preferences.theme);
+            localStorage.setItem('fixate-font', this.preferences.default_font);
+            document.documentElement.setAttribute('data-font', this.preferences.default_font);
         }, 500);
         
         getCsrfToken() {

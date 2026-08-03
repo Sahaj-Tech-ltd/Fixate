@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block title %}Highlight Journal — Fixate{% endblock %}
+
+{% block extra_css %}
+<style>
+.journal-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+}
+
+.journal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.journal-header h1 {
+    font-size: 22px;
+}
+
+.journal-header nav a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    margin-left: 16px;
+}
+
+.journal-header nav a:hover { color: var(--accent); }
+
+.journal-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.search-input {
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    width: 250px;
+}
+
+.search-input:focus { outline: none; border-color: var(--accent); }
+
+.btn-sm {
+    padding: 6px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.btn-sm:hover { border-color: var(--accent); }
+.btn-sm.accent { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Document groups */
+.doc-group {
+    margin-bottom: 32px;
+}
+
+.doc-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.doc-group-header h3 {
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.doc-group-header .count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Highlight cards */
+.highlight-card {
+    background: var(--bg-secondary);
+    border-left: 3px solid #fbbf24;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+
+.highlight-card:hover {
+    border-left-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.highlight-card .meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    margin-top: 6px;
+}
+
+/* Outline section */
+.outline-section {
+    margin-top: 40px;
+}
+
+.outline-doc-select {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 16px;
+}
+
+.outline-heading {
+    padding: 8px 0;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    margin-top: 16px;
+}
+
+.outline-heading.level-1 { font-size: 18px; }
+.outline-heading.level-2 { font-size: 15px; padding-left: 16px; }
+.outline-heading.level-3 { font-size: 13px; padding-left: 32px; color: var(--text-secondary); }
+
+.outline-highlight {
+    padding: 4px 0 4px 48px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-left: 2px solid #fbbf24;
+    margin: 2px 0 2px 48px;
+}
+
+.export-area {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+
+.export-area.show { display: flex; }
+
+.export-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.export-modal pre {
+    background: var(--bg-primary);
+    padding: 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    max-height: 40vh;
+    overflow-y: auto;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 0;
+    color: var(--text-secondary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="journal-container" x-data="journalApp()" x-init="init()">
+    <header class="journal-header">
+        <h1>📓 Highlight Journal</h1>
+        <nav>
+            <a href="{% url 'dashboard' %}">← Library</a>
+            <a href="{% url 'flashcards-page' %}">🃏 Cards</a>
+        </nav>
+    </header>
+
+    <div class="journal-actions" style="margin-bottom:20px;">
+        <input type="text" class="search-input" placeholder="Search all highlights..." 
+               x-model="search" @input="debounceSearch()">
+        <button class="btn-sm accent" @click="exportMarkdown()">📥 Export All</button>
+    </div>
+
+    <!-- Highlight cards grouped by document -->
+    <template x-for="group in groupedHighlights" :key="group.document_id">
+        <div class="doc-group">
+            <div class="doc-group-header">
+                <h3 x-text="group.document_title"></h3>
+                <span class="count" x-text="group.highlights.length + ' highlights'"></span>
+                <button class="btn-sm" @click="loadOutline(group.document_id)" style="margin-left:auto;">
+                    📋 Outline
+                </button>
+            </div>
+            <template x-for="h in group.highlights" :key="h.id">
+                <div class="highlight-card">
+                    <span x-text="h.text"></span>
+                    <div class="meta" x-text="'Index: ' + h.start_index"></div>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <div class="empty-state" x-show="groupedHighlights.length === 0 && !loading">
+        <p>No highlights yet.</p>
+        <p style="font-size:13px;">Start reading and press <strong>H</strong> or click 💡 Highlight to capture passages. They'll appear here.</p>
+    </div>
+
+    <!-- Auto-Outline section -->
+    <div class="outline-section" x-show="outline">
+        <h2 style="font-size:18px;margin-bottom:12px;">📋 Document Outline</h2>
+        <select class="outline-doc-select" x-model="outlineDoc" @change="loadOutline(outlineDoc)">
+            <option value="">Select document...</option>
+            <template x-for="group in groupedHighlights" :key="group.document_id">
+                <option :value="group.document_id" x-text="group.document_title"></option>
+            </template>
+        </select>
+        <div x-show="outline">
+            <h3 style="margin-bottom:12px;" x-text="outline.document_title"></h3>
+            <template x-for="item in outline.outline" :key="item.line">
+                <div>
+                    <div class="outline-heading" :class="'level-' + item.level" x-text="item.text"></div>
+                    <template x-for="h in item.highlights" :key="h.start_index">
+                        <div class="outline-highlight" x-text="h.text"></div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Export modal -->
+    <div class="export-area" :class="{ show: showExport }" @click.self="showExport = false">
+        <div class="export-modal">
+            <h3 style="margin-bottom:12px;">Export as Markdown</h3>
+            <pre x-text="exportText"></pre>
+            <div style="margin-top:12px;display:flex;gap:8px;">
+                <button class="btn-sm accent" @click="copyExport()">📋 Copy</button>
+                <button class="btn-sm" @click="showExport = false">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function journalApp() {
+    return {
+        highlights: [],
+        search: '',
+        outline: null,
+        outlineDoc: '',
+        loading: true,
+        showExport: false,
+        exportText: '',
+        _timer: null,
+
+        get groupedHighlights() {
+            const groups = {};
+            for (const h of this.highlights) {
+                const key = h.document;
+                if (!groups[key]) groups[key] = { document_id: h.document, document_title: h.document_title, highlights: [] };
+                groups[key].highlights.push(h);
+            }
+            return Object.values(groups);
+        },
+
+        async init() {
+            await this.loadHighlights();
+            this.loading = false;
+        },
+
+        async loadHighlights() {
+            try {
+                let url = '/api/reader/highlights/';
+                if (this.search) url += '?search=' + encodeURIComponent(this.search);
+                const resp = await fetch(url, { headers: { 'X-CSRFToken': this._csrf() } });
+                if (resp.ok) this.highlights = await resp.json();
+            } catch(e) {}
+        },
+
+        debounceSearch() {
+            if (this._timer) clearTimeout(this._timer);
+            this._timer = setTimeout(() => this.loadHighlights(), 300);
+        },
+
+        async loadOutline(docId) {
+            if (!docId) { this.outline = null; return; }
+            try {
+                const resp = await fetch(`/api/reader/outline/${docId}/`, {
+                    headers: { 'X-CSRFToken': this._csrf() }
+                });
+                if (resp.ok) { this.outline = await resp.json(); this.outlineDoc = docId; }
+            } catch(e) {}
+        },
+
+        exportMarkdown() {
+            let md = '# My Highlight Journal\n\n';
+            for (const group of this.groupedHighlights) {
+                md += `## ${group.document_title}\n\n`;
+                for (const h of group.highlights) {
+                    md += `> ${h.text}\n\n`;
+                }
+            }
+            this.exportText = md;
+            this.showExport = true;
+        },
+
+        copyExport() {
+            navigator.clipboard.writeText(this.exportText).then(() => {
+                alert('Copied to clipboard!');
+            });
+        },
+
+        _csrf() {
+            return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        },
+    }
+}
+</script>
+{% endblock %}

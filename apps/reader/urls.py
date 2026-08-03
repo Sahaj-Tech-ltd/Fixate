@@ -1,10 +1,35 @@
 from django.urls import path
+from django.views.generic import TemplateView
 from apps.reader.views import (
     UserPreferencesView,
     StartReadingView,
     UpdateSessionView,
     DocumentTextView,
     ReaderView,
+    AudioTrackListView,
+    TaskListView,
+    TaskDetailView,
+    KanbanView,
+    NoteListView,
+    NoteDetailView,
+    NotesPageView,
+    CoworkView,
+    RoomListView,
+    RoomJoinView,
+    RoomDetailView,
+    UserXPView,
+    RecordXPEventView,
+    StreakView,
+    FlashcardDeckListView,
+    FlashcardDeckDetailView,
+    FlashcardListView,
+    FlashcardDetailView,
+    FlashcardReviewView,
+    FlashcardsPageView,
+    HighlightListView,
+    HighlightJournalView,
+    OutlineView,
+    ExportAnnotatedPDFView,
 )
 
 urlpatterns = [
@@ -12,5 +37,39 @@ urlpatterns = [
     path('start/<int:document_id>/', StartReadingView.as_view(), name='start-reading'),
     path('session/<int:session_id>/', UpdateSessionView.as_view(), name='update-session'),
     path('text/<int:document_id>/', DocumentTextView.as_view(), name='document-text'),
+    path('tracks/', AudioTrackListView.as_view(), name='audio-tracks'),
     path('read/<int:document_id>/', ReaderView.as_view(), name='reader'),
+    # Kanban (C3 — web only)
+    path('tasks/', TaskListView.as_view(), name='task-list'),
+    path('tasks/<int:task_id>/', TaskDetailView.as_view(), name='task-detail'),
+    path('kanban/', KanbanView.as_view(), name='kanban'),
+    # Notes (C4 — web only)
+    path('notes/', NoteListView.as_view(), name='note-list'),
+    path('notes/<int:note_id>/', NoteDetailView.as_view(), name='note-detail'),
+    path('sticky-notes/', NotesPageView.as_view(), name='sticky-notes'),
+    # Co-working workspace (unified C1-C5)
+    path('cowork/', CoworkView.as_view(), name='cowork'),
+    # Co-working rooms (C6 — WebSocket)
+    path('rooms/', RoomListView.as_view(), name='room-list'),
+    path('rooms/join/', RoomJoinView.as_view(), name='room-join'),
+    path('rooms/<int:room_id>/', RoomDetailView.as_view(), name='room-detail'),
+    # XP & Streak (gamification)
+    path('xp/', UserXPView.as_view(), name='user-xp'),
+    path('xp/event/', RecordXPEventView.as_view(), name='record-xp-event'),
+    path('streak/', StreakView.as_view(), name='streak'),
+    path('pro/', TemplateView.as_view(template_name='pro.html'), name='pro'),
+    # Flashcards
+    path('flashcards/', FlashcardsPageView.as_view(), name='flashcards-page'),
+    path('flashcards/decks/', FlashcardDeckListView.as_view(), name='flashcard-deck-list'),
+    path('flashcards/decks/<int:deck_id>/', FlashcardDeckDetailView.as_view(), name='flashcard-deck-detail'),
+    path('flashcards/cards/', FlashcardListView.as_view(), name='flashcard-list'),
+    path('flashcards/cards/<int:card_id>/', FlashcardDetailView.as_view(), name='flashcard-detail'),
+    path('flashcards/review/', FlashcardReviewView.as_view(), name='flashcard-review-next'),
+    path('flashcards/review/<int:card_id>/', FlashcardReviewView.as_view(), name='flashcard-review'),
+    # Highlight Journal & Outline
+    path('highlights/', HighlightListView.as_view(), name='highlight-list'),
+    path('journal/', HighlightJournalView.as_view(), name='journal'),
+    path('outline/<int:document_id>/', OutlineView.as_view(), name='outline'),
+    path('export/<int:document_id>/', ExportAnnotatedPDFView.as_view(), name='export-pdf'),
+    path('board/', TemplateView.as_view(template_name='board.html'), name='board'),
 ]

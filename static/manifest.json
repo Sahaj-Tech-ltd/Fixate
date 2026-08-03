@@ -1,0 +1,25 @@
+{
+  "name": "Fixate — ADHD-Friendly Reading",
+  "short_name": "Fixate",
+  "description": "The reading platform built for the ADHD brain. RSVP, bionic reading, focus noise, sprints, and more.",
+  "start_url": "/dashboard/",
+  "display": "standalone",
+  "background_color": "#08080a",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "education", "health"],
+  "lang": "en-US"
+}

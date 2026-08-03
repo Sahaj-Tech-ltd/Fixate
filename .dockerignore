@@ -1,0 +1,65 @@
+# Secrets — NEVER baked into image
+.env
+*.env
+!.env.example
+*.pem
+*.key
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Test artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+!tests/__init__.py
+
+# Database
+*.sqlite3
+*.db
+
+# Media/uploads
+media/
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs/plans — not needed in image
+*.md
+!README.md
+bugs.md
+todo.md
+MASTER-PLAN.md
+FEATURE-PARITY.md
+futuretodo.md
+
+# Desktop build artifacts
+desktop/
+src-tauri/
