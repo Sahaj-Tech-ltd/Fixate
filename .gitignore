@@ -69,3 +69,5 @@ desktop/src-tauri/target/
 
 .idea/
 .vscode/
+media/uploads/
+uploads/
